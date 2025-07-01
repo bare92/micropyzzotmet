@@ -3,7 +3,7 @@
   "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/AZUFRE_downscale_micromet/Sentinel2-new_DEM.tif",
   "era_file": null,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
-  "variables": ["temperature"],
+  "variables_to_downscale": {"t_air":"y", "sw_radiation":"y", "relative_humidity": "y", "precipitation": "y"},
   "start_date": "2022-04-01",
   "end_date": "2023-05-31",
   "time_step": "24H", 
