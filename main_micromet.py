@@ -17,7 +17,17 @@ import glob
 from get_era5_land import get_era5
 from utils import *
 from downscaling_variables import *
+import time
+from joblib import Parallel, delayed
 
+def run_month(curr_climate_file, dem_path, working_directory):
+    
+        month = os.path.basename(curr_climate_file).split('_')[2]
+        year = os.path.basename(curr_climate_file).split('_')[1]
+        
+        output_folder_T = os.path.join(working_directory,'outputs', 'Temperature', '_'.join([year, month]))
+
+        downscale_Temperature(dem_path, curr_climate_file, output_folder_T)
 
 def run_micropezzomet(config_path):
     
@@ -32,6 +42,8 @@ def run_micropezzomet(config_path):
     era_path = config["era_file"]
     pat_token = config["earthdatahub_pat"] 
     time_step = config["time_step"]
+    jobs_downscaling = config["jobs_parallel_downscale"]
+    jobs_download = config["jobs_parallel_download"]
     
     create_full_micromet_folder_structure(base_path=working_directory)
     
@@ -51,20 +63,16 @@ def run_micropezzomet(config_path):
             refrence_area_path=dem_path,
             output_dir=os.path.join(working_directory, 'inputs/climate'),
             PAT=pat_token,
-            aggregate_daily=aggregate_daily
+            jobs_download = jobs_download,
+            aggregate_daily=aggregate_daily,            
+            
         )
     
-    climate_files = glob.glob(os.path.join(working_directory, 'inputs/climate', '*.nc'))
-        
-        
-    for curr_climate_file in climate_files:
-        
-        month = os.path.basename(curr_climate_file).split('_')[2]
-        year = os.path.basename(curr_climate_file).split('_')[1]
-        
-        output_folder_T = os.path.join(working_directory,'outputs', 'Temperature', '_'.join([year, month]))
-
-        downscale_Temperature(dem_path, curr_climate_file, output_folder_T)
+    climate_files = sorted(glob.glob(os.path.join(working_directory, 'inputs/climate', '*.nc')))
+   
+    Parallel(n_jobs=-1)(
+        delayed(run_month)(f, dem_path, working_directory) for f in climate_files
+    )
 
 
 if __name__ == "__main__":
@@ -72,9 +80,19 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python run_micromet.py path_to_config.json")
     else:
-        run_micropezzomet(sys.argv[1])
+        config_path = sys.argv[1]
+        start_time = time.time()
         
-
+        run_micropezzomet(config_path)
         
+        end_time = time.time()
+        elapsed = end_time - start_time
+        elapsed_min = int(elapsed // 60)
+        elapsed_sec = int(elapsed % 60)
         
+        # Load config again just for summary
+        config = load_config(config_path)
+        print("\nMicroPezzottoMet run completed.")
+        print(f"Time range: {config['start_date']} to {config['end_date']}")
+        print(f"Execution time: {elapsed_min} minutes and {elapsed_sec} seconds")
 

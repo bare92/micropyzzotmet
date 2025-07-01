@@ -14,6 +14,7 @@ import numpy as np
 import os
 import rasterio
 from rasterio.warp import transform_bounds
+from joblib import Parallel, delayed
 
 def is_valid_netcdf(file_path):
     try:
@@ -50,7 +51,9 @@ def aggregate_to_daily(ds):
             agg_dict[var] = ds[var].resample(valid_time="1D").mean()
     return xr.Dataset(agg_dict)
 
-def process_month(ds, start, end, output_dir, surface_vars, aggregate_daily=False):
+def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
+    
+    end = (start + pd.offsets.MonthEnd(0)) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
     tag = "_daily" if aggregate_daily else ""
     surface_file = os.path.join(output_dir, f"era_{start.strftime('%Y_%m')}{tag}.nc")
     if is_valid_netcdf(surface_file):
@@ -78,7 +81,7 @@ def process_month(ds, start, end, output_dir, surface_vars, aggregate_daily=Fals
 
 
 
-def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, aggregate_daily = False):
+def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, jobs_download = 1, aggregate_daily = False):
     os.makedirs(output_dir, exist_ok=True)
     lat_min, lat_max, lon_min, lon_max = get_tiff_extent_latlon(refrence_area_path)
     lat_slice = slice(lat_max, lat_min)
@@ -92,8 +95,11 @@ def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, aggregat
     ds = ds.sel(valid_time=slice(start_date, end_date))
 
     time_ranges = pd.date_range(start=start_date, end=end_date, freq='MS')
-    for start in time_ranges:
-        end = (start + pd.offsets.MonthEnd(0)) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-        process_month(ds, start, end, output_dir, variables, aggregate_daily=aggregate_daily)
+    
+        
+    Parallel(n_jobs=-1)(
+        delayed(process_month)(ds, start, output_dir, variables, aggregate_daily=aggregate_daily) for start in time_ranges
+    )
+    
 
     print("ERA5 download complete.")

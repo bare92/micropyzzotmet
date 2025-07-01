@@ -1,13 +1,14 @@
 { 
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet",
-  "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet/Maipo_dem.tif",
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet",
+  "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet/model_extent_DEM_500m_wgs84.tif",
   "era_file": null,
-  "jobs": 8,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
   "variables": ["temperature"],
-  "start_date": "2018-01-01",
-  "end_date": "2020-01-31",
+  "start_date": "1990-01-01",
+  "end_date": "2025-01-31",
   "time_step": "24H", 
+  "jobs_parallel_downscale": -1,
+  "jobs_parallel_download": -1,
   "custom_lapse_rates": {
     "temperature": {
       "monthly": [8.1,8.1,7.7,6.8,5.5,4.7,4.4,5.9,7.1,7.8,8.1,8.2]
