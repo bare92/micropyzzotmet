@@ -13,7 +13,8 @@
   * Shortwave Radiation
   * Relative Humidity
   * Precipitation
-  * Wind 
+  * Wind
+  * Longwave Radiation (to be implemented)
 * Uses custom or default monthly lapse rates
 * Generates GeoTIFFs (will be updated)
 * Parallel processing support
@@ -63,7 +64,8 @@ working_directory/
     ├── SW/              # Shortwave radiation
     ├── RH/              # Relative humidity
     ├── P/               # Precipitation
-    └── Wind/            # Wind speed/direction 
+    └── Wind/            # Wind speed/direction
+    └── LW/              # Longwave Radiation
 ```
 
 ---
@@ -81,7 +83,8 @@ working_directory/
     "sw_radiation": "y",
     "relative_humidity": "y",
     "precipitation": "y",
-    "wind": "n"
+    "wind": "y",
+    "lw_radiation": "y"
   },
   "start_date": "2017-04-01",
   "end_date": "2018-03-31",
@@ -101,6 +104,29 @@ working_directory/
 
 ---
 
+### Bash file example
+
+```bash
+#!/bin/bash
+
+# Exit if any command fails
+set -e
+
+# Activate conda environment
+echo "Activating conda environment 'swe3'..."
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate swe3
+
+# Path to your Python script and config
+SCRIPT_PATH="./main_micromet.py"
+CONFIG_PATH="./micro_config_MAIPO.json"
+
+echo "Running MicroMet downscaling..."
+python "$SCRIPT_PATH" "$CONFIG_PATH"
+
+echo "Done DK."
+```
+
 ## References
 
 * Liston, G.E., & Elder, K. (2006). A Meteorological Distribution System for High-Resolution Terrestrial Modeling (MicroMet). *Journal of Hydrometeorology*, 7(2), 217-234. [https://doi.org/10.1175/JHM486.1](https://doi.org/10.1175/JHM486.1)
@@ -114,7 +140,8 @@ mo li si aggiunge
 ---
 
 ## To Do
-poi vediamo
+
+
 ---
 
 ## Contact
