@@ -41,8 +41,15 @@ def run_month(curr_climate_file, dem_path, working_directory, variables_to_downs
     if parse_yes_no_flag(variables_to_downscale.get("precipitation", "n"), "precipitation"):
         output_folder_P = os.path.join(working_directory, 'outputs', 'P', f"{year}_{month}")
         downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom_gamma=custom_lapse_rates.get("precipitation", {}).get("monthly"))
+        
+     # Wind
+    if parse_yes_no_flag(variables_to_downscale.get("wind", "n"), "wind"):
+        output_folder_W = os.path.join(working_directory, 'outputs', 'Wind', f"{year}_{month}")
+        downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.5)
+
 
 def run_micropezzomet(config_path):
+    
     config = load_config(config_path)
 
     working_directory = config["working_directory"]
@@ -72,6 +79,8 @@ def run_micropezzomet(config_path):
         )
 
     compute_slope_aspect(dem_path, working_directory)
+    
+    compute_topographic_curvature(dem_path, working_directory)
 
     climate_files = sorted(glob.glob(os.path.join(working_directory, 'inputs/climate', '*.nc')))
     variables_to_downscale = config["variables_to_downscale"]

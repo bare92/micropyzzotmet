@@ -10,6 +10,7 @@ import json
 import rasterio
 import xarray as xr
 import os
+import numpy as np
 
 
 def parse_yes_no_flag(value, var_name=""):
@@ -102,3 +103,82 @@ def compute_slope_aspect(dem_path, working_directory):
         print("Error running gdaldem commands")
 
     return slope_path, aspect_path
+
+
+
+def compute_topographic_curvature(dem_path, working_directory, L=1000):
+    """
+    Compute and save curvature from DEM using vectorized numpy operations (fast version).
+
+    Parameters:
+        dem_path (str): Path to input DEM file
+        working_directory (str): Output folder
+        L (float): Curvature length scale (m)
+
+    Returns:
+        curvature_path (str): Path to saved curvature GeoTIFF
+    """
+    output_dir = os.path.join(working_directory, 'inputs', 'dem')
+    os.makedirs(output_dir, exist_ok=True)
+    curvature_path = os.path.join(output_dir, 'curvature.tif')
+
+    if os.path.exists(curvature_path):
+        print(f"Curvature already exists at {curvature_path}. Skipping.")
+        return curvature_path
+
+    with rasterio.open(dem_path) as src:
+        dem = src.read(1).astype(np.float32)
+        transform = src.transform
+        dem_meta = src.meta.copy()
+
+    ny, nx = dem.shape
+    deltax = transform.a
+    deltay = -transform.e
+    deltaxy = 0.5 * (deltax + deltay)
+    inc = max(1, int(round(L / deltaxy)))
+
+    # Pad DEM to handle boundaries
+    dem_pad = np.pad(dem, inc, mode='edge')
+
+    # Prepare shifted arrays
+    z = dem_pad[inc:-inc, inc:-inc]
+    zW = dem_pad[inc:-inc, inc - inc:-2 * inc]
+    zE = dem_pad[inc:-inc, inc + inc:2 * inc + inc]
+    zS = dem_pad[inc + inc:2 * inc + inc, inc:-inc]
+    zN = dem_pad[inc - inc:-2 * inc, inc:-inc]
+    zSW = dem_pad[inc + inc:2 * inc + inc, inc - inc:-2 * inc]
+    zNE = dem_pad[inc - inc:-2 * inc, inc + inc:2 * inc + inc]
+    zNW = dem_pad[inc - inc:-2 * inc, inc - inc:-2 * inc]
+    zSE = dem_pad[inc + inc:2 * inc + inc, inc + inc:2 * inc + inc]
+
+    # Clamp slices to same shape
+    z = z[:min(map(np.shape, [z, zW, zE, zS, zN, zSW, zNE, zNW, zSE]), key=lambda s: s[0])[0],
+          :min(map(np.shape, [z, zW, zE, zS, zN, zSW, zNE, zNW, zSE]), key=lambda s: s[1])[1]]
+
+    # Compute curvature components
+    c_diag = (4 * z - zSW - zNE - zNW - zSE) / (np.sqrt(2.0) * 16.0 * inc * deltaxy)
+    c_cross = (4 * z - zW - zE - zN - zS) / (16.0 * inc * deltaxy)
+    curvature = c_diag + c_cross
+
+    # Normalize curvature
+    curve_max = max(0.001, np.nanmax(np.abs(curvature)))
+    curvature /= (2.0 * curve_max)
+
+    # Embed curvature into full-sized array
+    full_curv = np.full_like(dem, np.nan, dtype=np.float32)
+    valid_shape = curvature.shape
+    full_curv[inc:inc + valid_shape[0], inc:inc + valid_shape[1]] = curvature
+
+    # Save
+    dem_meta.update(dtype='float32', count=1)
+    with rasterio.open(curvature_path, 'w', **dem_meta) as dst:
+        dst.write(full_curv, 1)
+
+    print(f"Curvature saved to {curvature_path}")
+    return curvature_path
+
+
+
+
+
+

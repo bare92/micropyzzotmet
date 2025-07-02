@@ -7,11 +7,13 @@
     "t_air": "y",
     "sw_radiation": "y",
     "relative_humidity": "y",
-    "precipitation": "y"
+    "precipitation": "y",
+    "wind": "n"
   },
   "start_date": "2017-04-01",
   "end_date": "2018-03-31",
   "time_step": "24H",
+  "dem_nodata": -9999,
   "jobs_parallel_downscale": -1,
   "jobs_parallel_download": -1,
   "custom_lapse_rates": {

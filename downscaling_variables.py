@@ -19,7 +19,6 @@ import pandas as pd
 from rasterio.warp import reproject, Resampling
 import matplotlib.pyplot as plt
 from affine import Affine
-
     
 def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_lapse_rate=None):
     geopotential_path = './auxiliary_data/geopotential3.nc'
@@ -394,6 +393,120 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
     print(f"Downscaling complete. Files saved in: {output_folder_P}")
 
 
+def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.5):
+   
+
+    os.makedirs(output_folder_W, exist_ok=True)
+    working_directory = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
+    curvature_path = glob.glob(os.path.join(working_directory, 'inputs', 'dem', '*curvature*.tif'))[0]
+
+    curvature_weight = 1 - slope_weight
+
+    with rasterio.open(dem_path) as dem_src:
+        dem = dem_src.read(1)
+        dem_meta = dem_src.meta.copy()
+        dem_crs = dem_src.crs
+        dem_transform = dem_src.transform
+
+    with rasterio.open(curvature_path) as curv_src:
+        curvature = curv_src.read(1)
+
+    slope_u = np.gradient(dem, axis=1) / dem_transform[0]
+    slope_v = np.gradient(dem, axis=0) / dem_transform[0]
+    slope = np.sqrt(np.arctan((slope_u ** 2 + slope_v ** 2)))
+    aspect = 3 * np.pi / 2 - np.arctan2(slope_v, slope_u)
+
+    ds = xr.open_dataset(curr_climate_file)
+    assert "u10" in ds and "v10" in ds, "Missing 'u10' or 'v10' in NetCDF"
+
+    u10 = ds["u10"]
+    v10 = ds["v10"]
+    time = ds.valid_time.values if "valid_time" in ds else ds.time.values
+    lon = ds.longitude.values
+    lat = ds.latitude.values
+    lon2d, lat2d = np.meshgrid(lon, lat)
+
+    dx = np.abs(lon[1] - lon[0])
+    dy = np.abs(lat[1] - lat[0])
+    era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
+    era_crs = CRS.from_epsg(4326)
+
+    for i, timestep in enumerate(tqdm(time, desc="Downscaling wind speed and direction")):
+        date = pd.to_datetime(str(timestep))
+        out_name_spd = f"wind_speed_downscaled_{date.strftime('%Y%m%dT%H%M')}.tif"
+        out_name_dir = f"wind_dir_downscaled_{date.strftime('%Y%m%dT%H%M')}.tif"
+        out_path_spd = os.path.join(output_folder_W, out_name_spd)
+        out_path_dir = os.path.join(output_folder_W, out_name_dir)
+
+        if os.path.exists(out_path_spd) and os.path.exists(out_path_dir):
+            print(f"Skipping {out_name_spd} and {out_name_dir} (already exist).")
+            continue
+
+        u_raw = u10.isel(valid_time=i).values if "valid_time" in u10.dims else u10.isel(time=i).values
+        v_raw = v10.isel(valid_time=i).values if "valid_time" in v10.dims else v10.isel(time=i).values
+
+        wind_u_resampled = np.empty_like(dem, dtype=np.float32)
+        wind_v_resampled = np.empty_like(dem, dtype=np.float32)
+
+        reproject(
+            source=u_raw,
+            destination=wind_u_resampled,
+            src_transform=era_transform,
+            src_crs=era_crs,
+            dst_transform=dem_transform,
+            dst_crs=dem_crs,
+            resampling=Resampling.bilinear
+        )
+        
+        reproject(
+            source=v_raw,
+            destination=wind_v_resampled,
+            src_transform=era_transform,
+            src_crs=era_crs,
+            dst_transform=dem_transform,
+            dst_crs=dem_crs,
+            resampling=Resampling.bilinear
+        )
+
+
+        wind_speed = np.sqrt(wind_u_resampled**2 + wind_v_resampled**2)
+        wind_direction = 3 * np.pi / 2 - np.arctan2(wind_v_resampled, wind_u_resampled)
+
+        slope_wind_direction = slope * np.cos(wind_direction - aspect)
+
+        # Normalize slope_wind_direction to [0, 1]
+        min_slope = np.nanmin(slope_wind_direction)
+        max_slope = np.nanmax(slope_wind_direction)
+        range_slope = max_slope - min_slope
+        slope_norm = (slope_wind_direction - min_slope) / range_slope if range_slope > 0 else np.zeros_like(slope_wind_direction) - 0.5
+
+        # Normalize curvature to [0, 1]
+        min_curv = np.nanmin(curvature)
+        max_curv = np.nanmax(curvature)
+        range_curv = max_curv - min_curv
+        curvature_norm = (curvature - min_curv) / range_curv if range_curv > 0 else np.zeros_like(curvature)
+
+        # Combine weights, enforcing sum = 1
+        slope_weighted = slope_weight * slope_norm
+        curvature_weighted = curvature_weight * curvature_norm
+        sum_weights = slope_weighted + curvature_weighted
+        sum_weights[sum_weights == 0] = 1.0  # avoid division by zero
+        slope_final = slope_weighted / sum_weights
+        curv_final = curvature_weighted / sum_weights
+
+        # Final wind weighting factor (relative effect)
+        wind_weighting_factor = 1 + slope_final + curv_final
+
+        wind_speed_adjusted = wind_speed * wind_weighting_factor
+
+        dem_meta.update(dtype='float32', count=1)
+        with rasterio.open(out_path_spd, 'w', **dem_meta) as dst:
+            dst.write(wind_speed_adjusted.astype(np.float32), 1)
+
+        with rasterio.open(out_path_dir, 'w', **dem_meta) as dst:
+            dst.write(np.degrees(wind_direction).astype(np.float32), 1)
+
+    print(f"Wind downscaling complete. Files saved in: {output_folder_W}")
 
 
 
