@@ -20,7 +20,7 @@ from rasterio.warp import reproject, Resampling
 import matplotlib.pyplot as plt
 from affine import Affine
     
-def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_lapse_rate=None):
+def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_lapse_rate=None, dem_nodata=None):
     geopotential_path = './auxiliary_data/geopotential3.nc'
 
     # Default lapse rates per hemisphere
@@ -32,6 +32,7 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
     # Read DEM
     with rasterio.open(dem_path) as dem_src:
         dem = dem_src.read(1)
+        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
         dem_meta = dem_src.meta.copy()
         dem_crs = dem_src.crs
         dem_transform = dem_src.transform
@@ -68,15 +69,12 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
     dy = np.abs(lat[1] - lat[0])
     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
     era_crs = CRS.from_epsg(4326)
+    
+    data_list = []
+    time_list = []
 
     for i, timestep in enumerate(tqdm(time, desc="Downscaling temperature")):
         date = pd.to_datetime(str(timestep))
-        out_name = f"temperature_downscaled_{date.strftime('%Y%m%dT%H%M')}.tif"
-        out_path = os.path.join(output_folder_T, out_name)
-
-        if os.path.exists(out_path):
-            print(f"Skipping {out_name} (already exists).")
-            continue
 
         temp_raw = temp.isel(valid_time=i).values if "valid_time" in temp.dims else temp.isel(time=i).values
         month_index = date.month - 1
@@ -96,15 +94,34 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
         )
 
         temperature_downscaled = t0_resampled - lapse_rate * (dem - 0)
-        dem_meta.update({"dtype": "float32", "count": 1})
+        temperature_downscaled[dem_mask] = np.nan  # Apply mask
 
-        with rasterio.open(out_path, 'w', **dem_meta) as dst:
-            dst.write(temperature_downscaled.astype(np.float32), 1)
+        data_list.append(temperature_downscaled[np.newaxis, ...])
+        time_list.append(date)
 
-    print(f"\nDownscaling complete. Files saved in: {output_folder_T}")
+    # Stack and save as NetCDF
+    data_array = xr.DataArray(
+        np.concatenate(data_list, axis=0),
+        dims=["time", "y", "x"],
+        coords={"time": time_list},
+        attrs={"units": "degC", "description": "Downscaled air temperature"}
+    )
 
+    ds_out = xr.Dataset({"temperature": data_array})
+    out_file = os.path.join(output_folder_T, f"temperature_downscaled_{time_list[0]:%Y_%m}.nc")
+    ds_out.to_netcdf(out_file)
+    print(f"\nNetCDF written to {out_file}")
 
-def downscale_SW(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1370.0, custom_lapse_rate=None):
+def downscale_SW(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1370.0, custom_lapse_rate=None, dem_nodata=None):
+    import xarray as xr
+    import numpy as np
+    import rasterio
+    import pandas as pd
+    from rasterio.warp import reproject, Resampling
+    from affine import Affine
+    import os
+    from tqdm import tqdm
+
     a, b, c = 611.21, 17.502, 240.97
     geopotential_path = './auxiliary_data/geopotential3.nc'
     working_directory = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
@@ -112,20 +129,27 @@ def downscale_SW(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1
     aspect_path = glob.glob(os.path.join(working_directory, 'inputs', 'dem', '*aspect*.tif'))[0]
     os.makedirs(output_folder_SW, exist_ok=True)
 
-    lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
-    lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
-    vp_coeff_nohem = np.array([0.41, 0.42, 0.40, 0.39, 0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40]) / 1000.0
-    vp_coeff_sohem = np.array([0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40, 0.41, 0.42, 0.40, 0.39]) / 1000.0
-
+    # Load DEM
     with rasterio.open(dem_path) as dem_src:
         dem = dem_src.read(1)
+        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
         dem_meta = dem_src.meta.copy()
         dem_crs = dem_src.crs
         dem_transform = dem_src.transform
+        ny, nx = dem.shape
+        x_coords = np.arange(nx) * dem_transform.a + dem_transform.c
+        y_coords = np.arange(ny) * dem_transform.e + dem_transform.f
+
     with rasterio.open(slope_path) as slope_src:
         slope_rad = np.radians(slope_src.read(1))
     with rasterio.open(aspect_path) as aspect_src:
         aspect_rad = np.radians(aspect_src.read(1))
+
+    # Lapse rates and coefficients
+    lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
+    lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
+    vp_coeff_nohem = np.array([0.41, 0.42, 0.40, 0.39, 0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40]) / 1000.0
+    vp_coeff_sohem = np.array([0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40, 0.41, 0.42, 0.40, 0.39]) / 1000.0
 
     ds = xr.open_dataset(curr_climate_file)
     temp, dew = ds["t2m"], ds["d2m"]
@@ -137,6 +161,7 @@ def downscale_SW(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1
     vp_coeff_all = vp_coeff_sohem if center_lat < 0 else vp_coeff_nohem
     lat_mean_rad = np.radians(center_lat)
 
+    # Reference elevation (z0) from geopotential
     geop = xr.open_dataset(geopotential_path)
     z0 = np.zeros_like(lat2d, dtype=np.float32)
     for i in range(lat2d.shape[0]):
@@ -149,17 +174,13 @@ def downscale_SW(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1
 
     dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
-    era_crs = CRS.from_epsg(4326)
+    era_crs = rasterio.crs.CRS.from_epsg(4326)
+
+    Qsi_all = []
+    time_list = []
 
     for i, timestep in enumerate(tqdm(time, desc="Downscaling shortwave radiation")):
         date = pd.to_datetime(str(timestep))
-        out_name = f"SW_downscaled_{date.strftime('%Y%m%dT%H%M')}.tif"
-        out_path = os.path.join(output_folder_SW, out_name)
-
-        if os.path.exists(out_path):
-            print(f"Skipping {out_name} (already exists).")
-            continue
-
         month_index = date.month - 1
         lapse_rate = lapse_rate_all[month_index]
         vp_coeff = vp_coeff_all[month_index]
@@ -192,45 +213,65 @@ def downscale_SW(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1
         trans_dir_resampled = np.empty_like(dem, dtype=np.float32)
         trans_dif_resampled = np.empty_like(dem, dtype=np.float32)
 
-        reproject(cloud_frac, cloud_resampled,
-                  src_transform=era_transform, src_crs=era_crs,
-                  dst_transform=dem_transform, dst_crs=dem_crs,
-                  resampling=Resampling.bilinear)
+        reproject(cloud_frac, cloud_resampled, src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
 
-        reproject(np.full_like(cloud_frac, trans_dir), trans_dir_resampled,
-                  src_transform=era_transform, src_crs=era_crs,
-                  dst_transform=dem_transform, dst_crs=dem_crs,
-                  resampling=Resampling.bilinear)
+        reproject(np.full_like(cloud_frac, trans_dir), trans_dir_resampled, src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
 
-        reproject(np.full_like(cloud_frac, trans_dif), trans_dif_resampled,
-                  src_transform=era_transform, src_crs=era_crs,
-                  dst_transform=dem_transform, dst_crs=dem_crs,
-                  resampling=Resampling.bilinear)
+        reproject(np.full_like(cloud_frac, trans_dif), trans_dif_resampled, src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
 
         Qsi = S0 * (trans_dir_resampled * cos_i + trans_dif_resampled * cosZ)
+        Qsi[dem_mask] = np.nan
 
-        dem_meta.update({"dtype": "float32", "count": 1})
-        with rasterio.open(out_path, 'w', **dem_meta) as dst:
-            dst.write(Qsi.astype(np.float32), 1)
+        Qsi_all.append(Qsi[np.newaxis, ...])
+        time_list.append(date)
 
-    print(f"Downscaling complete. Files saved in: {output_folder_SW}")
-    
-    
-def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rate=None):
+    # Write monthly NetCDF
+    Qsi_stack = np.concatenate(Qsi_all, axis=0)
+    da = xr.DataArray(Qsi_stack, dims=["time", "y", "x"], coords={"time": time_list, "y": y_coords, "x": x_coords})
+    da.attrs = {"units": "W m-2", "description": "Downscaled incoming shortwave radiation"}
+
+    ds_out = xr.Dataset({"shortwave_radiation": da})
+    month_tag = pd.to_datetime(time_list[0]).strftime("%Y_%m")
+    out_nc = os.path.join(output_folder_SW, f"SW_downscaled_{month_tag}.nc")
+    ds_out.to_netcdf(out_nc)
+
+    print(f"\nSaved NetCDF: {out_nc}")
+
+
+def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rate=None, dem_nodata=None):
+    import os
+    import numpy as np
+    import xarray as xr
+    import pandas as pd
+    import rasterio
+    from rasterio.warp import reproject, Resampling
+    from rasterio.transform import from_origin
+    from rasterio.crs import CRS
+    from tqdm import tqdm
+
     a, b, c = 611.21, 17.502, 240.97
     geopotential_path = './auxiliary_data/geopotential3.nc'
     os.makedirs(output_folder_RH, exist_ok=True)
 
+    # Lapse rates
     lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
     lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
     vp_coeff_nohem = np.array([0.41, 0.42, 0.40, 0.39, 0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40]) / 1000.0
     vp_coeff_sohem = np.array([0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40, 0.41, 0.42, 0.40, 0.39]) / 1000.0
 
+    # Load DEM
     with rasterio.open(dem_path) as dem_src:
         dem = dem_src.read(1)
+        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
         dem_meta = dem_src.meta.copy()
         dem_crs = dem_src.crs
         dem_transform = dem_src.transform
+        ny, nx = dem.shape
+        x_coords = np.arange(nx) * dem_transform.a + dem_transform.c
+        y_coords = np.arange(ny) * dem_transform.e + dem_transform.f
 
     ds = xr.open_dataset(curr_climate_file)
     temp, dew = ds["t2m"], ds["d2m"]
@@ -255,15 +296,11 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
     era_crs = CRS.from_epsg(4326)
 
+    RH_all = []
+    time_list = []
+
     for i, timestep in enumerate(tqdm(time, desc="Downscaling relative humidity")):
         date = pd.to_datetime(str(timestep))
-        out_name = f"RH_downscaled_{date.strftime('%Y%m%dT%H%M')}.tif"
-        out_path = os.path.join(output_folder_RH, out_name)
-
-        if os.path.exists(out_path):
-            print(f"Skipping {out_name} (already exists).")
-            continue
-
         month_index = date.month - 1
         lapse_rate = lapse_rate_all[month_index]
         vp_coeff = vp_coeff_all[month_index]
@@ -278,24 +315,11 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
         t0_resampled = np.empty_like(dem, dtype=np.float32)
         d0_resampled = np.empty_like(dem, dtype=np.float32)
 
-        reproject(
-            source=t_0,
-            destination=t0_resampled,
-            src_transform=era_transform,
-            src_crs=era_crs,
-            dst_transform=dem_transform,
-            dst_crs=dem_crs,
-            resampling=Resampling.bilinear
-        )
-        reproject(
-            source=d_0,
-            destination=d0_resampled,
-            src_transform=era_transform,
-            src_crs=era_crs,
-            dst_transform=dem_transform,
-            dst_crs=dem_crs,
-            resampling=Resampling.bilinear
-        )
+        reproject(t_0, t0_resampled, src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
+
+        reproject(d_0, d0_resampled, src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
 
         T_down = t0_resampled - lapse_rate * (dem - 0) - 273.15
         D_down = d0_resampled - d_t_lapse_rate * (dem - 0) - 273.15
@@ -303,15 +327,25 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
         es = a * np.exp((b * T_down) / (T_down + c))
         e = a * np.exp((b * D_down) / (D_down + c))
         RH = np.clip(100 * e / es, 0, 100)
+        RH[dem_mask] = np.nan
 
-        dem_meta.update({"dtype": "float32", "count": 1})
-        with rasterio.open(out_path, 'w', **dem_meta) as dst:
-            dst.write(RH.astype(np.float32), 1)
+        RH_all.append(RH[np.newaxis, ...])
+        time_list.append(date)
 
-    print(f"Downscaling complete. Files saved in: {output_folder_RH}")
+    RH_stack = np.concatenate(RH_all, axis=0)
+    da = xr.DataArray(RH_stack, dims=["time", "y", "x"], coords={"time": time_list, "y": y_coords, "x": x_coords})
+    da.attrs = {"units": "%", "description": "Downscaled relative humidity"}
 
+    ds_out = xr.Dataset({"relative_humidity": da})
+    month_tag = pd.to_datetime(time_list[0]).strftime("%Y_%m")
+    out_nc = os.path.join(output_folder_RH, f"RH_downscaled_{month_tag}.nc")
+    ds_out.to_netcdf(out_nc)
 
-def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom_gamma=None):
+    print(f"\nSaved NetCDF: {out_nc}")
+
+def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom_gamma=None, dem_nodata=None):
+    
+
     geopotential_path = './auxiliary_data/geopotential3.nc'
     os.makedirs(output_folder_P, exist_ok=True)
 
@@ -320,9 +354,13 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
 
     with rasterio.open(dem_path) as dem_src:
         dem = dem_src.read(1)
+        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
         dem_meta = dem_src.meta.copy()
         dem_crs = dem_src.crs
         dem_transform = dem_src.transform
+        ny, nx = dem.shape
+        x_coords = np.arange(nx) * dem_transform.a + dem_transform.c
+        y_coords = np.arange(ny) * dem_transform.e + dem_transform.f
 
     ds = xr.open_dataset(curr_climate_file)
     precip = ds["tp"] if "tp" in ds else ds["precip"]
@@ -347,54 +385,54 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
     era_crs = CRS.from_epsg(4326)
 
+    precip_all = []
+    time_list = []
+
     for i, timestep in enumerate(tqdm(time, desc="Downscaling precipitation")):
         date = pd.to_datetime(str(timestep))
-        out_name = f"precip_downscaled_{date.strftime('%Y%m%dT%H%M')}.tif"
-        out_path = os.path.join(output_folder_P, out_name)
-
-        if os.path.exists(out_path):
-            print(f"Skipping {out_name} (already exists).")
-            continue
-
         month_index = date.month - 1
         gamma = gamma_all[month_index]
 
         precip_raw = precip.isel(valid_time=i).values if "valid_time" in precip.dims else precip.isel(time=i).values
 
-        p0 = precip_raw
-        z0_field = z0
-
         p0_resampled = np.empty_like(dem, dtype=np.float32)
         z0_resampled = np.empty_like(dem, dtype=np.float32)
 
-        reproject(
-            source=p0,
-            destination=p0_resampled,
-            src_transform=era_transform, src_crs=era_crs,
-            dst_transform=dem_transform, dst_crs=dem_crs,
-            resampling=Resampling.bilinear
-        )
+        reproject(precip_raw, p0_resampled,
+                  src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs,
+                  resampling=Resampling.bilinear)
 
-        reproject(
-            source=z0_field,
-            destination=z0_resampled,
-            src_transform=era_transform, src_crs=era_crs,
-            dst_transform=dem_transform, dst_crs=dem_crs,
-            resampling=Resampling.bilinear
-        )
+        reproject(z0, z0_resampled,
+                  src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs,
+                  resampling=Resampling.bilinear)
 
         dz = dem - z0_resampled
         precip_downscaled = p0_resampled * ((1 + gamma * dz) / (1 + np.abs(gamma * dz)))
 
-        dem_meta.update({"dtype": "float32", "count": 1})
-        with rasterio.open(out_path, 'w', **dem_meta) as dst:
-            dst.write(precip_downscaled.astype(np.float32), 1)
+        precip_downscaled[dem_mask] = np.nan
+        precip_all.append(precip_downscaled[np.newaxis, ...])
+        time_list.append(date)
 
-    print(f"Downscaling complete. Files saved in: {output_folder_P}")
+    precip_stack = np.concatenate(precip_all, axis=0)
+
+    da = xr.DataArray(
+        precip_stack,
+        dims=["time", "y", "x"],
+        coords={"time": time_list, "y": y_coords, "x": x_coords},
+        attrs={"units": "mm", "description": "Downscaled precipitation"}
+    )
+
+    ds_out = xr.Dataset({"precipitation": da})
+    month_tag = pd.to_datetime(time_list[0]).strftime("%Y_%m")
+    out_nc = os.path.join(output_folder_P, f"precip_downscaled_{month_tag}.nc")
+    ds_out.to_netcdf(out_nc)
+
+    print(f"\nSaved NetCDF: {out_nc}")
 
 
-def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.5):
-   
+def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.5, dem_nodata=None):
 
     os.makedirs(output_folder_W, exist_ok=True)
     working_directory = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
@@ -404,9 +442,13 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
 
     with rasterio.open(dem_path) as dem_src:
         dem = dem_src.read(1)
+        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
         dem_meta = dem_src.meta.copy()
         dem_crs = dem_src.crs
         dem_transform = dem_src.transform
+        ny, nx = dem.shape
+        x_coords = np.arange(nx) * dem_transform.a + dem_transform.c
+        y_coords = np.arange(ny) * dem_transform.e + dem_transform.f
 
     with rasterio.open(curvature_path) as curv_src:
         curvature = curv_src.read(1)
@@ -422,92 +464,75 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
     u10 = ds["u10"]
     v10 = ds["v10"]
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
-    lon = ds.longitude.values
-    lat = ds.latitude.values
-    lon2d, lat2d = np.meshgrid(lon, lat)
-
-    dx = np.abs(lon[1] - lon[0])
-    dy = np.abs(lat[1] - lat[0])
+    lon, lat = ds.longitude.values, ds.latitude.values
+    dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
     era_crs = CRS.from_epsg(4326)
 
+    wind_speed_all = []
+    wind_dir_all = []
+    time_list = []
+
     for i, timestep in enumerate(tqdm(time, desc="Downscaling wind speed and direction")):
         date = pd.to_datetime(str(timestep))
-        out_name_spd = f"wind_speed_downscaled_{date.strftime('%Y%m%dT%H%M')}.tif"
-        out_name_dir = f"wind_dir_downscaled_{date.strftime('%Y%m%dT%H%M')}.tif"
-        out_path_spd = os.path.join(output_folder_W, out_name_spd)
-        out_path_dir = os.path.join(output_folder_W, out_name_dir)
-
-        if os.path.exists(out_path_spd) and os.path.exists(out_path_dir):
-            print(f"Skipping {out_name_spd} and {out_name_dir} (already exist).")
-            continue
-
         u_raw = u10.isel(valid_time=i).values if "valid_time" in u10.dims else u10.isel(time=i).values
         v_raw = v10.isel(valid_time=i).values if "valid_time" in v10.dims else v10.isel(time=i).values
 
         wind_u_resampled = np.empty_like(dem, dtype=np.float32)
         wind_v_resampled = np.empty_like(dem, dtype=np.float32)
 
-        reproject(
-            source=u_raw,
-            destination=wind_u_resampled,
-            src_transform=era_transform,
-            src_crs=era_crs,
-            dst_transform=dem_transform,
-            dst_crs=dem_crs,
-            resampling=Resampling.bilinear
-        )
-        
-        reproject(
-            source=v_raw,
-            destination=wind_v_resampled,
-            src_transform=era_transform,
-            src_crs=era_crs,
-            dst_transform=dem_transform,
-            dst_crs=dem_crs,
-            resampling=Resampling.bilinear
-        )
-
+        reproject(u_raw, wind_u_resampled, src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
+        reproject(v_raw, wind_v_resampled, src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
 
         wind_speed = np.sqrt(wind_u_resampled**2 + wind_v_resampled**2)
         wind_direction = 3 * np.pi / 2 - np.arctan2(wind_v_resampled, wind_u_resampled)
 
         slope_wind_direction = slope * np.cos(wind_direction - aspect)
 
-        # Normalize slope_wind_direction to [0, 1]
         min_slope = np.nanmin(slope_wind_direction)
         max_slope = np.nanmax(slope_wind_direction)
         range_slope = max_slope - min_slope
         slope_norm = (slope_wind_direction - min_slope) / range_slope if range_slope > 0 else np.zeros_like(slope_wind_direction) - 0.5
 
-        # Normalize curvature to [0, 1]
         min_curv = np.nanmin(curvature)
         max_curv = np.nanmax(curvature)
         range_curv = max_curv - min_curv
         curvature_norm = (curvature - min_curv) / range_curv if range_curv > 0 else np.zeros_like(curvature)
 
-        # Combine weights, enforcing sum = 1
         slope_weighted = slope_weight * slope_norm
         curvature_weighted = curvature_weight * curvature_norm
         sum_weights = slope_weighted + curvature_weighted
-        sum_weights[sum_weights == 0] = 1.0  # avoid division by zero
+        sum_weights[sum_weights == 0] = 1.0
         slope_final = slope_weighted / sum_weights
         curv_final = curvature_weighted / sum_weights
 
-        # Final wind weighting factor (relative effect)
         wind_weighting_factor = 1 + slope_final + curv_final
-
         wind_speed_adjusted = wind_speed * wind_weighting_factor
+        wind_direction_deg = np.degrees(wind_direction)
 
-        dem_meta.update(dtype='float32', count=1)
-        with rasterio.open(out_path_spd, 'w', **dem_meta) as dst:
-            dst.write(wind_speed_adjusted.astype(np.float32), 1)
+        wind_speed_adjusted[dem_mask] = np.nan
+        wind_direction_deg[dem_mask] = np.nan
 
-        with rasterio.open(out_path_dir, 'w', **dem_meta) as dst:
-            dst.write(np.degrees(wind_direction).astype(np.float32), 1)
+        wind_speed_all.append(wind_speed_adjusted[np.newaxis, ...])
+        wind_dir_all.append(wind_direction_deg[np.newaxis, ...])
+        time_list.append(date)
 
-    print(f"Wind downscaling complete. Files saved in: {output_folder_W}")
+    # Create and save NetCDF
+    spd_stack = np.concatenate(wind_speed_all, axis=0)
+    dir_stack = np.concatenate(wind_dir_all, axis=0)
 
+    ds_out = xr.Dataset({
+        "wind_speed": xr.DataArray(spd_stack, dims=["time", "y", "x"], coords={"time": time_list, "y": y_coords, "x": x_coords}, attrs={"units": "m s-1"}),
+        "wind_direction": xr.DataArray(dir_stack, dims=["time", "y", "x"], coords={"time": time_list, "y": y_coords, "x": x_coords}, attrs={"units": "degrees from north"})
+    })
+
+    month_tag = pd.to_datetime(time_list[0]).strftime("%Y_%m")
+    out_nc = os.path.join(output_folder_W, f"Wind_downscaled_{month_tag}.nc")
+    ds_out.to_netcdf(out_nc)
+
+    print(f"\nWind downscaling complete. Saved: {out_nc}")
 
 
 

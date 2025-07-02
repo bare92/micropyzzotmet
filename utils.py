@@ -106,14 +106,16 @@ def compute_slope_aspect(dem_path, working_directory):
 
 
 
-def compute_topographic_curvature(dem_path, working_directory, L=1000):
+def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodata=None):
     """
-    Compute and save curvature from DEM using vectorized numpy operations (fast version).
+    Compute and save curvature from DEM using vectorized numpy operations (fast version),
+    masking out no-data values.
 
     Parameters:
         dem_path (str): Path to input DEM file
         working_directory (str): Output folder
         L (float): Curvature length scale (m)
+        dem_nodata (float or int): No-data value in DEM
 
     Returns:
         curvature_path (str): Path to saved curvature GeoTIFF
@@ -131,13 +133,15 @@ def compute_topographic_curvature(dem_path, working_directory, L=1000):
         transform = src.transform
         dem_meta = src.meta.copy()
 
+    if dem_nodata is not None:
+        dem[dem == dem_nodata] = np.nan
+
     ny, nx = dem.shape
     deltax = transform.a
     deltay = -transform.e
     deltaxy = 0.5 * (deltax + deltay)
     inc = max(1, int(round(L / deltaxy)))
 
-    # Pad DEM to handle boundaries
     dem_pad = np.pad(dem, inc, mode='edge')
 
     # Prepare shifted arrays
@@ -151,31 +155,34 @@ def compute_topographic_curvature(dem_path, working_directory, L=1000):
     zNW = dem_pad[inc - inc:-2 * inc, inc - inc:-2 * inc]
     zSE = dem_pad[inc + inc:2 * inc + inc, inc + inc:2 * inc + inc]
 
-    # Clamp slices to same shape
-    z = z[:min(map(np.shape, [z, zW, zE, zS, zN, zSW, zNE, zNW, zSE]), key=lambda s: s[0])[0],
-          :min(map(np.shape, [z, zW, zE, zS, zN, zSW, zNE, zNW, zSE]), key=lambda s: s[1])[1]]
+    # Align shapes
+    common_shape = np.min([arr.shape for arr in [z, zW, zE, zS, zN, zSW, zNE, zNW, zSE]], axis=0)
+    def crop(arr): return arr[:common_shape[0], :common_shape[1]]
+    z, zW, zE, zS, zN = map(crop, [z, zW, zE, zS, zN])
+    zSW, zNE, zNW, zSE = map(crop, [zSW, zNE, zNW, zSE])
 
-    # Compute curvature components
+    # Compute curvature
     c_diag = (4 * z - zSW - zNE - zNW - zSE) / (np.sqrt(2.0) * 16.0 * inc * deltaxy)
     c_cross = (4 * z - zW - zE - zN - zS) / (16.0 * inc * deltaxy)
     curvature = c_diag + c_cross
 
-    # Normalize curvature
+    curvature[np.isnan(z)] = np.nan
+
     curve_max = max(0.001, np.nanmax(np.abs(curvature)))
     curvature /= (2.0 * curve_max)
 
-    # Embed curvature into full-sized array
+    # Embed curvature into full DEM shape
     full_curv = np.full_like(dem, np.nan, dtype=np.float32)
     valid_shape = curvature.shape
     full_curv[inc:inc + valid_shape[0], inc:inc + valid_shape[1]] = curvature
 
-    # Save
     dem_meta.update(dtype='float32', count=1)
     with rasterio.open(curvature_path, 'w', **dem_meta) as dst:
         dst.write(full_curv, 1)
 
     print(f"Curvature saved to {curvature_path}")
     return curvature_path
+
 
 
 
