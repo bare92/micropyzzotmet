@@ -1,6 +1,6 @@
 # MicroPyzzotMet: A Python Implementation of MicroMet
 
-**MicroPyzzotMet** is a beginner-friendly Python tool that replicates the functionality of the MicroMet model (Liston and Elder, 2006), designed to downscale meteorological variables over complex terrain using high-resolution DEMs and ERA5-Land (will be expanded) data. It produces distributed atmospheric forcing variables suitable for use in terrestrial models (e.g., snow models like SnowModel).
+**MicroPyzzotMet** is a beginner-friendly Python tool that replicates the functionality of the MicroMet model (Liston and Elder, 2006), designed to downscale meteorological variables over complex terrain using high-resolution DEMs and ERA5-Land (will be expanded) data. It produces distributed atmospheric forcing variables suitable for use in models (e.g., snow models like SnowModel, s3m, fsm2..).
 
 ---
 
