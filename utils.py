@@ -11,6 +11,7 @@ import rasterio
 import xarray as xr
 import os
 import numpy as np
+import pandas as pd
 
 
 def parse_yes_no_flag(value, var_name=""):
@@ -184,6 +185,52 @@ def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodat
     return curvature_path
 
 
+def write_downscaled_to_netcdf(
+    variables_dict,
+    time_list,
+    dem_shape,
+    dem_transform,
+    dem_crs,
+    out_nc
+):
+    """
+    Save multiple downscaled variables to NetCDF with spatial referencing.
+
+    Parameters:
+        variables_dict: dict of {var_name: (data_list, units, description)}
+        time_list: list of datetime objects
+        dem_shape: shape of the DEM used as reference
+        dem_transform: Affine transform of the DEM
+        dem_crs: CRS of the DEM
+        out_nc: full path to the output NetCDF file
+    """
+
+    height, width = dem_shape
+    x_coords = np.arange(width) * dem_transform.a + dem_transform.c + dem_transform.a / 2
+    y_coords = np.arange(height) * dem_transform.e + dem_transform.f + dem_transform.e / 2
+
+    dataset_vars = {}
+
+    for var_name, (data_list, units, description) in variables_dict.items():
+        data_stack = np.concatenate(data_list, axis=0)
+
+        da = xr.DataArray(
+            data_stack,
+            dims=["time", "y", "x"],
+            coords={"time": time_list, "y": y_coords, "x": x_coords},
+            attrs={"units": units, "description": description}
+        )
+
+        dataset_vars[var_name] = da
+
+    ds_out = xr.Dataset(dataset_vars)
+    ds_out = ds_out.rio.write_transform(dem_transform)
+    ds_out = ds_out.rio.write_crs(dem_crs)
+
+    os.makedirs(os.path.dirname(out_nc), exist_ok=True)
+    ds_out.to_netcdf(out_nc)
+
+    print(f"\nSaved NetCDF: {out_nc}")
 
 
 

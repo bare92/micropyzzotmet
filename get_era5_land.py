@@ -7,6 +7,15 @@ Created on Wed Jun 18 15:59:40 2025
 """
 
 # get_era5_zarr.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jun 18 15:59:40 2025
+
+@author: rbarella
+"""
+
+# get_era5_zarr.py
 
 import xarray as xr
 import pandas as pd
@@ -64,18 +73,22 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
     ds_surface = ds_month[surface_vars]
 
     # Convert longitude to [-180, 180]
-    if 'longitude' in ds_surface.coords:
-        longitudes = ds_surface['longitude'].values
-        longitudes = np.where(longitudes > 180, longitudes - 360, longitudes)
-        ds_surface = ds_surface.assign_coords(longitude=("longitude", longitudes))
-        ds_surface = ds_surface.sortby('longitude')
-
-    if 'z_surf' in ds_surface.variables:
-        ds_surface = ds_surface.rename({'z_surf': 'z'})
-        ds_surface.attrs['crs'] = "EPSG:4326"
+    
+    longitudes = ds_surface['longitude'].values
+    longitudes = np.where(longitudes > 180, longitudes - 360, longitudes)
+    ds_surface = ds_surface.assign_coords(longitude=("longitude", longitudes))
+    ds_surface = ds_surface.sortby('longitude')
 
     if aggregate_daily:
         ds_surface = aggregate_to_daily(ds_surface)
+        
+    # Assign coordinate attributes explicitly
+    ds_surface.latitude.attrs.update(units='degrees_north', standard_name='latitude', axis='Y')
+    ds_surface.longitude.attrs.update(units='degrees_east', standard_name='longitude', axis='X')
+
+    # Assign CRS explicitly with rioxarray
+    ds_surface = ds_surface.rio.write_crs("EPSG:4326", inplace=True)
+
 
     ds_surface.to_netcdf(surface_file)
 
