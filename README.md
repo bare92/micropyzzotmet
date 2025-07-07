@@ -6,7 +6,7 @@
 
 ## Features
 
-* Automatic ERA5-Land data download and spatial subset using HeartDatHub functionalities (https://earthdatahub.destine.eu/)
+* Automatic ERA5-Land data download and spatial subset using EartDatHub functionalities (https://earthdatahub.destine.eu/)
 * Modular downscaling of:
 
   * Air Temperature
