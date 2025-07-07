@@ -81,6 +81,17 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
 
     if aggregate_daily:
         ds_surface = aggregate_to_daily(ds_surface)
+        seconds = 86400
+    else:
+        seconds = 3600
+    
+    # Convert radiation variables from J/m² to W/m²
+    for var in ['ssrd', 'strd']:
+        if var in ds_surface:
+            ds_surface[var] = ds_surface[var] / seconds
+            ds_surface[var].attrs['units'] = 'W m-2'
+            ds_surface[var].attrs['description'] = 'Converted from J m-2 by dividing by time interval in seconds'
+
         
     # Assign coordinate attributes explicitly
     ds_surface.latitude.attrs.update(units='degrees_north', standard_name='latitude', axis='Y')

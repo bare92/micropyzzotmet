@@ -8,14 +8,14 @@
     "sw_radiation": "y",
     "relative_humidity": "n",
     "precipitation": "n",
-    "wind": "n"
+    "wind": "n",
+    "lw_radiation": "n"
   },
   "start_date": "2022-04-01",
   "end_date": "2023-05-31",
-  "time_step": "24H",
+  "aggregate_daily": "y",
   "dem_nodata": -32768,
-  "jobs_parallel_downscale": -1,
-  "jobs_parallel_download": -1,
+  "auto_calibrate_lapse_rate": "y",
   "custom_lapse_rates": {
     "temperature": {
       "monthly": null
@@ -23,5 +23,7 @@
     "precipitation": {
       "monthly": null
     }
-  }
+  },
+  "jobs_parallel_downscale": -1,
+  "jobs_parallel_download": -1,
 }
