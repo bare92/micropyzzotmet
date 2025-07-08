@@ -4,8 +4,8 @@
   "era_file": null,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
   "variables_to_downscale": {
-    "t_air": "y",
-    "sw_radiation": "n",
+    "t_air": "n",
+    "sw_radiation": "y",
     "relative_humidity": "n",
     "precipitation": "n",
     "wind": "n",
@@ -24,7 +24,7 @@
       "monthly": null
     }
   },
-  "jobs_parallel_downscale": -1,
+  "jobs_parallel_downscale": 3,
   "jobs_parallel_download": -1
 }
 
