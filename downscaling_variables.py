@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 from affine import Affine
 from utils import write_downscaled_to_netcdf
 from scipy.stats import linregress
+from scipy import interpolate as spint
+import copy
     
 def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
    
@@ -135,166 +137,40 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
 
 
 
-# def downscale_SW(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1370.0, custom_lapse_rate=None, dem_nodata=None):
-    
-
-#     a, b, c = 611.21, 17.502, 240.97
-#     geopotential_path = './auxiliary_data/geopotential3.nc'
-#     working_directory = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
-#     slope_path = glob.glob(os.path.join(working_directory, 'inputs', 'dem', '*slope*.tif'))[0]
-#     aspect_path = glob.glob(os.path.join(working_directory, 'inputs', 'dem', '*aspect*.tif'))[0]
-#     os.makedirs(output_folder_SW, exist_ok=True)
-
-#     # Load DEM
-#     with rasterio.open(dem_path) as dem_src:
-#         dem = dem_src.read(1)
-#         dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
-#         dem_meta = dem_src.meta.copy()
-#         dem_crs = dem_src.crs
-#         dem_transform = dem_src.transform
-#         ny, nx = dem.shape
-#         x_coords = np.arange(nx) * dem_transform.a + dem_transform.c
-#         y_coords = np.arange(ny) * dem_transform.e + dem_transform.f
-
-#     with rasterio.open(slope_path) as slope_src:
-#         slope_rad = np.radians(slope_src.read(1))
-#     with rasterio.open(aspect_path) as aspect_src:
-#         aspect_rad = np.radians(aspect_src.read(1))
-
-#     # Lapse rates and coefficients
-#     lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
-#     lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
-#     vp_coeff_nohem = np.array([0.41, 0.42, 0.40, 0.39, 0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40]) / 1000.0
-#     vp_coeff_sohem = np.array([0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40, 0.41, 0.42, 0.40, 0.39]) / 1000.0
-
-#     ds = xr.open_dataset(curr_climate_file)
-#     sw = ds["ssrd"]
-#     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
-#     lon, lat = ds.longitude.values, ds.latitude.values
-#     lon2d, lat2d = np.meshgrid(lon, lat)
-    
-   
-      
-#     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    
-   
-    
-#     out_nc = os.path.join(output_folder_SW, f"shortwave_downscaled_{month_tag}.nc")
-    
-#     if os.path.exists(out_nc):
-#         print(f"Output already exists: {out_nc}. Skipping downscaling.")
-#         return
-    
-#     center_lat = (lat[0] + lat[-1]) / 2
-#     lapse_rate_all = np.array(custom_lapse_rate) / 1000.0 if custom_lapse_rate else (lapse_rate_sohem if center_lat < 0 else lapse_rate_nohem)
-#     vp_coeff_all = vp_coeff_sohem if center_lat < 0 else vp_coeff_nohem
-#     lat_mean_rad = np.radians(center_lat)
-
-#     # Reference elevation (z0) from geopotential
-#     geop = xr.open_dataset(geopotential_path)
-#     z0 = np.zeros_like(lat2d, dtype=np.float32)
-#     for i in range(lat2d.shape[0]):
-#         for j in range(lat2d.shape[1]):
-#             try:
-#                 Z = geop.z.sel(latitude=lat2d[i, j], longitude=lon2d[i, j], method="nearest", tolerance=0.5)
-#                 z0[i, j] = Z.values.item() / 9.81
-#             except:
-#                 z0[i, j] = np.nan
-
-#     dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
-#     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
-#     era_crs = rasterio.crs.CRS.from_epsg(4326)
-
-#     Qsi_all = []
-#     time_list = []
-
-#     for i, timestep in enumerate(tqdm(time, desc="Downscaling shortwave radiation")):
-#         date = pd.to_datetime(str(timestep))
-#         month_index = date.month - 1
-#         lapse_rate = lapse_rate_all[month_index]
-#         vp_coeff = vp_coeff_all[month_index]
-#         d_t_lapse_rate = vp_coeff * c / b
-        
-        
-
-#         t_raw = temp.isel(valid_time=i).values if "valid_time" in temp.dims else temp.isel(time=i).values
-#         d_raw = dew.isel(valid_time=i).values if "valid_time" in dew.dims else dew.isel(time=i).values
-
-#         t_0 = t_raw - lapse_rate * (0 - z0)
-#         d_0 = d_raw - d_t_lapse_rate * (0 - z0)
-#         T_700 = t_0 - lapse_rate * (z_700 - z0) - 273.15
-#         D_700 = d_0 - d_t_lapse_rate * (z_700 - z0) - 273.15
-
-#         es = a * np.exp((b * T_700) / (T_700 + c))
-#         e = a * np.exp((b * D_700) / (D_700 + c))
-#         RH_700 = np.clip(100 * e / es, 0, 100)
-#         cloud_frac = np.clip(0.832 * np.exp((RH_700 - 100) / 41.6), 0, 1)
-
-#         hour = date.hour + date.minute / 60
-#         delta = -23.44 * np.pi / 180 * np.cos(2 * np.pi * (date.dayofyear + 10) / 365)
-#         omega = np.pi * (hour - 12) / 12
-#         cosZ = np.clip(np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega), 0, 1)
-#         phi = np.arcsin(np.clip(np.cos(delta) * np.sin(omega) / max(np.sin(np.arccos(cosZ)), 1e-6), -1, 1))
-#         cos_i = np.clip(np.cos(slope_rad) * cosZ + np.sin(slope_rad) * np.sqrt(1 - cosZ**2) * np.cos(phi - aspect_rad), 0, 1)
-
-#         trans_dir = (0.6 + 0.2 * cosZ) * (1.0 - cloud_frac)
-#         trans_dif = (0.3 + 0.1 * cosZ) * cloud_frac
-
-#         cloud_resampled = np.empty_like(dem, dtype=np.float32)
-#         trans_dir_resampled = np.empty_like(dem, dtype=np.float32)
-#         trans_dif_resampled = np.empty_like(dem, dtype=np.float32)
-
-#         reproject(cloud_frac, cloud_resampled, src_transform=era_transform, src_crs=era_crs,
-#                   dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
-
-#         reproject(np.full_like(cloud_frac, trans_dir), trans_dir_resampled, src_transform=era_transform, src_crs=era_crs,
-#                   dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
-
-#         reproject(np.full_like(cloud_frac, trans_dif), trans_dif_resampled, src_transform=era_transform, src_crs=era_crs,
-#                   dst_transform=dem_transform, dst_crs=dem_crs, resampling=Resampling.bilinear)
-
-#         Qsi = S0 * (trans_dir_resampled * cos_i + trans_dif_resampled * cosZ)
-#         Qsi[dem_mask] = np.nan
-
-#         Qsi_all.append(Qsi[np.newaxis, ...])
-#         time_list.append(date)
-    
-#     write_downscaled_to_netcdf(
-#         variables_dict={
-#             "SW": (Qsi_all, "W m-2", "Downscaled incoming shortwave radiation")
-#         },
-#         time_list=time_list,
-#         dem_shape=dem.shape,
-#         dem_transform=dem_transform,
-#         dem_crs=dem_crs,
-#         out_nc=out_nc
-#     )
 
 def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1370.0,
                           custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
-   
+    import numpy as np
+    import xarray as xr
+    import os
+    import pandas as pd
+    import rasterio
+    from rasterio.warp import reproject, Resampling
+    from rasterio.transform import from_origin
+    from scipy.stats import linregress
+    from glob import glob as glob_glob
+
     a, b, c = 611.21, 17.502, 240.97
     geopotential_path = './auxiliary_data/geopotential3.nc'
 
-    # Identify project root and slope/aspect paths
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
-    slope_path = glob.glob(os.path.join(project_root, 'inputs', 'dem', '*slope*.tif'))[0]
-    aspect_path = glob.glob(os.path.join(project_root, 'inputs', 'dem', '*aspect*.tif'))[0]
+    slope_path = glob_glob(os.path.join(project_root, 'inputs', 'dem', '*slope*.tif'))[0]
+    aspect_path = glob_glob(os.path.join(project_root, 'inputs', 'dem', '*aspect*.tif'))[0]
     os.makedirs(output_folder_SW, exist_ok=True)
 
-    # Load DEM
-    with rasterio.open(dem_path) as dem_src:
+    with rasterio.open(dem_path) as dem_src, \
+         rasterio.open(slope_path) as slope_src, \
+         rasterio.open(aspect_path) as aspect_src:
+
         dem = dem_src.read(1)
         dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
         dem_transform = dem_src.transform
         dem_crs = dem_src.crs
         dem_shape = dem.shape
 
-    # Load slope and aspect
-    with rasterio.open(slope_path) as slope_src:
         slope_rad = np.radians(slope_src.read(1))
-    with rasterio.open(aspect_path) as aspect_src:
-        aspect_rad = np.radians(aspect_src.read(1))
+        aspect_raw = aspect_src.read(1)
+        aspect_rad = (np.radians(aspect_raw) + np.pi) % (2 * np.pi)
 
     lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
     lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
@@ -303,10 +179,15 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
 
     ds = xr.open_dataset(curr_climate_file)
     temp, dew = ds["t2m"], ds["d2m"]
-    time = ds.valid_time.values if "valid_time" in ds else ds.time.values
+    if "valid_time" in ds.variables:
+        time = ds["valid_time"].values
+    elif "time" in ds.variables:
+        time = ds["time"].values
+    else:
+        raise ValueError("Dataset does not contain 'time' or 'valid_time' variables.")
+
     lon, lat = ds.longitude.values, ds.latitude.values
     lon2d, lat2d = np.meshgrid(lon, lat)
-
     time_pd = pd.to_datetime(time)
     is_daily_data = len(time_pd) == 1 or (len(time_pd) > 1 and (time_pd[1] - time_pd[0]) >= pd.Timedelta("23h"))
     center_lat = (lat[0] + lat[-1]) / 2
@@ -314,21 +195,13 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
 
     if custom_lapse_rate and calibrate_lapse_rate:
         raise ValueError("Cannot use both custom_lapse_rate and calibrate_lapse_rate=True.")
-    if custom_lapse_rate:
-        lapse_rate_all = np.array(custom_lapse_rate) / 1000.0
-    elif not calibrate_lapse_rate:
-        lapse_rate_all = lapse_rate_sohem if center_lat < 0 else lapse_rate_nohem
+    lapse_rate_all = (np.array(custom_lapse_rate) / 1000.0 if custom_lapse_rate else
+                      lapse_rate_sohem if center_lat < 0 else lapse_rate_nohem)
     vp_coeff_all = vp_coeff_sohem if center_lat < 0 else vp_coeff_nohem
 
     geop = xr.open_dataset(geopotential_path)
-    z0 = np.zeros_like(lat2d, dtype=np.float32)
-    for i in range(lat2d.shape[0]):
-        for j in range(lat2d.shape[1]):
-            try:
-                Z = geop.z.sel(latitude=lat2d[i, j], longitude=lon2d[i, j], method="nearest", tolerance=0.5)
-                z0[i, j] = Z.values.item() / 9.81
-            except:
-                z0[i, j] = np.nan
+    z0 = geop.z.interp(latitude=("y", lat2d[:, 0]), longitude=("x", lon2d[0, :]), method="nearest") / 9.81
+    z0 = z0.values.astype(np.float32)
 
     dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
@@ -343,20 +216,14 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
     Qsi_all = []
     time_list = []
 
-    for i, timestep in enumerate(time_pd):
-        date = pd.to_datetime(timestep)
+    for i, date in enumerate(time_pd):
         month_index = date.month - 1
-        
 
         if calibrate_lapse_rate:
             T_vals = temp.isel(valid_time=i).values.flatten() if "valid_time" in temp.dims else temp.isel(time=i).values.flatten()
             Z_vals = z0.flatten()
             valid = ~np.isnan(T_vals) & ~np.isnan(Z_vals)
-            if np.sum(valid) < 5:
-                lapse_rate = lapse_rate_sohem[month_index] if center_lat < 0 else lapse_rate_nohem[month_index]
-            else:
-                slope, _, _, _, _ = linregress(Z_vals[valid], T_vals[valid])
-                lapse_rate = -slope
+            lapse_rate = -linregress(Z_vals[valid], T_vals[valid]).slope if np.sum(valid) >= 5 else lapse_rate_all[month_index]
         else:
             lapse_rate = lapse_rate_all[month_index]
 
@@ -377,29 +244,17 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
         cloud_frac = np.clip(0.832 * np.exp((RH_700 - 100) / 41.6), 0, 1)
 
         cloud_frac_resampled = np.empty_like(dem, dtype=np.float32)
-        reproject(
-            cloud_frac,
-            cloud_frac_resampled,
-            src_transform=era_transform,
-            src_crs=era_crs,
-            dst_transform=dem_transform,
-            dst_crs=dem_crs,
-            resampling=Resampling.bilinear
-        )
+        reproject(cloud_frac, cloud_frac_resampled,
+                  src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs,
+                  resampling=Resampling.bilinear)
 
         if is_daily_data:
             hours = np.linspace(0.5, 23.5, 24)
             omega = np.pi * (hours - 12) / 12
             delta = -23.44 * np.pi / 180 * np.cos(2 * np.pi * (date.dayofyear + 10) / 365)
-            cosZ = np.clip(
-                np.sin(lat_mean_rad) * np.sin(delta) +
-                np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega),
-                0, 1
-            )
-            phi = np.arcsin(np.clip(
-                np.cos(delta) * np.sin(omega) / np.maximum(np.sin(np.arccos(cosZ)), 1e-6),
-                -1, 1
-            ))
+            cosZ = np.clip(np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega), 0, 1)
+            phi = np.arcsin(np.clip(np.cos(delta) * np.sin(omega) / np.maximum(np.sin(np.arccos(cosZ)), 1e-6), -1, 1))
             cosZ_exp = cosZ[:, None, None]
             phi_exp = phi[:, None, None]
             slope_exp = slope_rad[None, :, :]
@@ -408,43 +263,157 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
 
             cos_i = np.clip(
                 np.cos(slope_exp) * cosZ_exp +
-                np.sin(slope_exp) * np.sqrt(1 - cosZ_exp**2) * np.cos(phi_exp - aspect_exp),
-                0, 1
-            )
+                np.sin(slope_exp) * np.sqrt(1 - cosZ_exp ** 2) * np.cos(phi_exp - aspect_exp),
+                0, 1)
 
             trans_dir = (0.6 + 0.2 * cosZ_exp) * (1.0 - cloud_exp)
             trans_dif = (0.3 + 0.1 * cosZ_exp) * cloud_exp
-
             Qsi_24 = S0 * (trans_dir * cos_i + trans_dif * cosZ_exp)
             Qsi_daily = np.sum(Qsi_24, axis=0) * 3600 / 86400
             Qsi_daily[dem_mask] = np.nan
             Qsi_all.append(Qsi_daily[np.newaxis, ...])
-        else:
-            hour = date.hour + date.minute / 60
-            delta = -23.44 * np.pi / 180 * np.cos(2 * np.pi * (date.dayofyear + 10) / 365)
-            omega = np.pi * (hour - 12) / 12
-            cosZ = np.clip(np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega), 0, 1)
-            phi = np.arcsin(np.clip(np.cos(delta) * np.sin(omega) / max(np.sin(np.arccos(cosZ)), 1e-6), -1, 1))
-            cos_i = np.clip(np.cos(slope_rad) * cosZ + np.sin(slope_rad) * np.sqrt(1 - cosZ**2) * np.cos(phi - aspect_rad), 0, 1)
-            trans_dir = (0.6 + 0.2 * cosZ) * (1.0 - cloud_frac_resampled)
-            trans_dif = (0.3 + 0.1 * cosZ) * cloud_frac_resampled
-            Qsi = S0 * (trans_dir * cos_i + trans_dif * cosZ)
-            Qsi[dem_mask] = np.nan
-            Qsi_all.append(Qsi[np.newaxis, ...])
 
         time_list.append(date)
 
     
     write_downscaled_to_netcdf(
-        variables_dict={
-            "SW": (Qsi_all, "W m-2", "Downscaled incoming shortwave radiation")
-        },
+        variables_dict={"SW": (Qsi_all, "W m-2", "Downscaled incoming shortwave radiation")},
         time_list=time_list,
         dem_shape=dem_shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
         out_nc=out_nc
     )
+
+
+
+def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodata=None):
+    import numpy as np
+    import xarray as xr
+    import os
+    import pandas as pd
+    import rasterio
+    from rasterio.warp import reproject, Resampling
+    from rasterio.transform import from_origin
+    from glob import glob as glob_glob
+
+    # Get slope and aspect maps
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
+    slope_path = glob_glob(os.path.join(project_root, 'inputs', 'dem', '*slope*.tif'))[0]
+    aspect_path = glob_glob(os.path.join(project_root, 'inputs', 'dem', '*aspect*.tif'))[0]
+    os.makedirs(output_folder_SW, exist_ok=True)
+
+    with rasterio.open(dem_path) as dem_src, \
+         rasterio.open(slope_path) as slope_src, \
+         rasterio.open(aspect_path) as aspect_src:
+
+        dem = dem_src.read(1)
+        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
+        dem_transform = dem_src.transform
+        dem_crs = dem_src.crs
+        dem_shape = dem.shape
+
+        slope_rad = np.radians(slope_src.read(1))
+        aspect_raw = aspect_src.read(1)
+        aspect_rad = np.radians(aspect_raw)
+
+    # Open dataset
+    ds = xr.open_dataset(curr_climate_file)
+    ssrd = ds["ssrd"]
+    time = ds["time"].values if "time" in ds.variables else ds["valid_time"].values
+    time_pd = pd.to_datetime(time)
+
+    lon, lat = ds.longitude.values, ds.latitude.values
+    lon2d, lat2d = np.meshgrid(lon, lat)
+    center_lat = (lat[0] + lat[-1]) / 2
+    lat_mean_rad = np.radians(center_lat)
+
+    dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
+    era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
+    era_crs = rasterio.crs.CRS.from_epsg(4326)
+
+    is_daily_data = len(time_pd) == 1 or (len(time_pd) > 1 and (time_pd[1] - time_pd[0]) >= pd.Timedelta("23h"))
+    month_tag = time_pd[0].strftime("%Y_%m")
+    out_nc = os.path.join(output_folder_SW, f"shortwave_downscaled_{month_tag}.nc")
+    if os.path.exists(out_nc):
+        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+        return
+
+    Qsi_all = []
+    time_list = []
+
+    for i, date in enumerate(time_pd):
+        ssrd_data = ssrd.isel(time=i).values if "time" in ssrd.dims else ssrd.isel(valid_time=i).values
+        ssrd_resampled = np.empty_like(dem, dtype=np.float32)
+        reproject(ssrd_data, ssrd_resampled,
+                  src_transform=era_transform, src_crs=era_crs,
+                  dst_transform=dem_transform, dst_crs=dem_crs,
+                  resampling=Resampling.bilinear)
+
+        if is_daily_data:
+            # Solar declination and solar noon
+            day_angle = 2 * np.pi * (date.dayofyear + 10) / 365
+            delta = -23.44 * np.pi / 180 * np.cos(day_angle)
+            omega = 0  # solar noon
+            cosZ = np.clip(
+                np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta),
+                0, 1
+            )
+            phi = np.arcsin(np.clip(
+                np.cos(delta) * np.sin(omega) / np.maximum(np.sin(np.arccos(cosZ)), 1e-6),
+                -1, 1
+            ))
+
+            cos_i = np.clip(
+                np.cos(slope_rad) * cosZ +
+                np.sin(slope_rad) * np.sqrt(1 - cosZ**2) * np.cos(phi - aspect_rad),
+                0, 1
+            )
+
+            Qsi_daily = ssrd_resampled * (cos_i / (cosZ + 1e-6))
+            Qsi_daily[dem_mask] = np.nan
+            Qsi_all.append(Qsi_daily[np.newaxis, ...])
+            time_list.append(date)
+
+        else:
+            # Hourly case — one file per hour
+            date_i = pd.to_datetime(date)
+            hour_angle = 2 * np.pi * (date_i.dayofyear + 10) / 365
+            delta = -23.44 * np.pi / 180 * np.cos(hour_angle)
+
+            # Compute hour angle ω from local solar time
+            hour = date_i.hour + date_i.minute / 60.0
+            omega = np.pi * (hour - 12) / 12  # radians
+
+            cosZ = np.clip(
+                np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega),
+                0, 1
+            )
+            phi = np.arcsin(np.clip(
+                np.cos(delta) * np.sin(omega) / np.maximum(np.sin(np.arccos(cosZ)), 1e-6),
+                -1, 1
+            ))
+
+            cos_i = np.clip(
+                np.cos(slope_rad) * cosZ +
+                np.sin(slope_rad) * np.sqrt(1 - cosZ**2) * np.cos(phi - aspect_rad),
+                0, 1
+            )
+
+            Qsi_hourly = ssrd_resampled * (cos_i / (cosZ + 1e-6))
+            Qsi_hourly[dem_mask] = np.nan
+            Qsi_all.append(Qsi_hourly[np.newaxis, ...])
+            time_list.append(date_i)
+
+    write_downscaled_to_netcdf(
+        variables_dict={"SW": (Qsi_all, "W m-2", "Topographically corrected shortwave radiation")},
+        time_list=time_list,
+        dem_shape=dem_shape,
+        dem_transform=dem_transform,
+        dem_crs=dem_crs,
+        out_nc=out_nc
+    )
+
 
 def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
     a, b, c = 611.21, 17.502, 240.97
@@ -647,7 +616,7 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
 
     write_downscaled_to_netcdf(
         variables_dict={
-            "P": (precip_all, "mm", "Downscaled relative humidity")
+            "P": (precip_all, "mm", "Downscaled precipitation")
         },
         time_list=time_list,
         dem_shape=dem.shape,

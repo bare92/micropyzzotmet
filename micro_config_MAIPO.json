@@ -1,5 +1,5 @@
 {
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet_self_calibrate",
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet_custom_LR_and_ssrd",
   "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet/Maipo_dem.tif",
   "era_file": null,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
@@ -11,20 +11,20 @@
     "wind": "n",
     "lw_radiation": "n"
   },
-  "start_date": "2002-04-01",
+  "start_date": "2018-04-01",
   "end_date": "2025-03-31",
   "aggregate_daily": "y",
   "dem_nodata": -32768,
-  "auto_calibrate_lapse_rate": "y",
+  "auto_calibrate_lapse_rate": "n",
   "custom_lapse_rates": {
     "temperature": {
-      "monthly": null
+      "monthly": [4.1, 4.1, 4.6, 4.6, 4.6, 4.5, 4.5, 4.5, 4.8, 4.8, 4.8, 4.1]
     },
     "precipitation": {
       "monthly": null
     }
   },
-  "jobs_parallel_downscale": 3,
+  "jobs_parallel_downscale": -1,
   "jobs_parallel_download": -1
 }
 

@@ -13,7 +13,12 @@ import os
 import numpy as np
 import pandas as pd
 from scipy.ndimage import convolve
-
+import glob
+from rasterio.crs import CRS
+import gzip
+import shutil
+from joblib import Parallel, delayed
+from rasterio.warp import reproject, calculate_default_transform, Resampling
 
 def parse_yes_no_flag(value, var_name=""):
     """
@@ -73,54 +78,79 @@ def load_era_data(era_path, variables, start_date=None, end_date=None):
 
     return era_ds
 
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+from tempfile import TemporaryDirectory
 
 def compute_slope_aspect(dem_path, working_directory):
-    """
-    Compute slope and aspect from a DEM using gdaldem and save results to <working_directory>/input/dem.
-
-    Parameters:
-        dem_path (str): Path to the input DEM file.
-        working_directory (str): Path to the working directory.
-    
-    Returns:
-        slope_path (str), aspect_path (str): Paths to the generated output files.
-    """
     output_dir = os.path.join(working_directory, 'inputs', 'dem')
     os.makedirs(output_dir, exist_ok=True)
-
-    # Define output file paths
     slope_path = os.path.join(output_dir, 'slope.tif')
     aspect_path = os.path.join(output_dir, 'aspect.tif')
 
-    # Build and run gdaldem commands
-    slope_cmd = f'gdaldem slope "{dem_path}" "{slope_path}" -of GTiff'
-    aspect_cmd = f'gdaldem aspect "{dem_path}" "{aspect_path}" -of GTiff'
+    with rasterio.open(dem_path) as src:
+        if src.crs.to_epsg() == 4326:
+            # Reproject to UTM for slope/aspect computation
+            lon, lat = (src.bounds.left + src.bounds.right)/2, (src.bounds.top + src.bounds.bottom)/2
+            zone = int((lon + 180) / 6) + 1
+            utm_epsg = 32600 + zone if lat >= 0 else 32700 + zone
 
-    slope_status = os.system(slope_cmd)
-    aspect_status = os.system(aspect_cmd)
+            transform, width, height = calculate_default_transform(
+                src.crs, f'EPSG:{utm_epsg}', src.width, src.height, *src.bounds)
+            kwargs = src.meta.copy()
+            kwargs.update({
+                'crs': f'EPSG:{utm_epsg}', 'transform': transform,
+                'width': width, 'height': height
+            })
 
-    if slope_status == 0 and aspect_status == 0:
-        print(f"Slope and aspect successfully saved in {output_dir}")
-    else:
-        print("Error running gdaldem commands")
+            with TemporaryDirectory() as tmpdir:
+                projected_path = os.path.join(tmpdir, "reprojected_dem.tif")
+                with rasterio.open(projected_path, 'w', **kwargs) as dst:
+                    reproject(
+                        source=rasterio.band(src, 1),
+                        destination=rasterio.band(dst, 1),
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=transform,
+                        dst_crs=f'EPSG:{utm_epsg}',
+                        resampling=Resampling.bilinear
+                    )
+                
+                # Now run gdaldem on projected_path
+                tmp_slope = os.path.join(tmpdir, "slope_utm.tif")
+                tmp_aspect = os.path.join(tmpdir, "aspect_utm.tif")
+                os.system(f'gdaldem slope "{projected_path}" "{tmp_slope}" -of GTiff')
+                os.system(f'gdaldem aspect "{projected_path}" "{tmp_aspect}" -of GTiff')
 
+                # Reproject slope/aspect back to original DEM grid
+                for input_file, output_file in zip([tmp_slope, tmp_aspect], [slope_path, aspect_path]):
+                    with rasterio.open(input_file) as src_tmp, rasterio.open(dem_path) as dst_ref:
+                        kwargs_out = dst_ref.meta.copy()
+                        kwargs_out.update(dtype=src_tmp.dtypes[0], count=1)
+                        with rasterio.open(output_file, 'w', **kwargs_out) as dst:
+                            reproject(
+                                source=src_tmp.read(1),
+                                destination=rasterio.band(dst, 1),
+                                src_transform=src_tmp.transform,
+                                src_crs=src_tmp.crs,
+                                dst_transform=dst_ref.transform,
+                                dst_crs=dst_ref.crs,
+                                resampling=Resampling.nearest
+                            )
+        else:
+            # DEM already projected: run gdaldem directly
+            slope_cmd = f'gdaldem slope "{dem_path}" "{slope_path}" -of GTiff'
+            aspect_cmd = f'gdaldem aspect "{dem_path}" "{aspect_path}" -of GTiff'
+            os.system(slope_cmd)
+            os.system(aspect_cmd)
+
+    print(f"Slope and aspect saved to {output_dir}")
     return slope_path, aspect_path
 
 
+from tempfile import TemporaryDirectory
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 
 def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodata=None):
-    """
-    Compute and save topographic curvature from a DEM using finite differences.
-
-    Parameters:
-        dem_path (str): Path to input DEM file
-        working_directory (str): Output folder
-        L (float): Length scale for curvature smoothing (m)
-        dem_nodata (float or int): No-data value in DEM
-
-    Returns:
-        curvature_path (str): Path to saved curvature GeoTIFF
-    """
     output_dir = os.path.join(working_directory, 'inputs', 'dem')
     os.makedirs(output_dir, exist_ok=True)
     curvature_path = os.path.join(output_dir, 'curvature.tif')
@@ -130,45 +160,93 @@ def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodat
         return curvature_path
 
     with rasterio.open(dem_path) as src:
-        dem = src.read(1).astype(np.float32)
-        transform = src.transform
-        meta = src.meta.copy()
+        dem_crs = src.crs
+        if dem_crs.to_epsg() == 4326:
+            # Project to UTM for curvature calculation
+            lon, lat = (src.bounds.left + src.bounds.right)/2, (src.bounds.top + src.bounds.bottom)/2
+            zone = int((lon + 180) / 6) + 1
+            utm_epsg = 32600 + zone if lat >= 0 else 32700 + zone
+
+            transform, width, height = calculate_default_transform(
+                src.crs, f"EPSG:{utm_epsg}", src.width, src.height, *src.bounds)
+            kwargs = src.meta.copy()
+            kwargs.update({
+                'crs': f"EPSG:{utm_epsg}",
+                'transform': transform,
+                'width': width,
+                'height': height
+            })
+
+            with TemporaryDirectory() as tmpdir:
+                projected_path = os.path.join(tmpdir, "projected_dem.tif")
+                with rasterio.open(projected_path, 'w', **kwargs) as dst:
+                    reproject(
+                        source=rasterio.band(src, 1),
+                        destination=rasterio.band(dst, 1),
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=transform,
+                        dst_crs=f"EPSG:{utm_epsg}",
+                        resampling=Resampling.bilinear
+                    )
+
+                # Compute curvature on projected DEM
+                with rasterio.open(projected_path) as proj_src:
+                    dem = proj_src.read(1).astype(np.float32)
+                    transform = proj_src.transform
+                    meta = proj_src.meta.copy()
+
+        else:
+            with rasterio.open(dem_path) as src:
+                dem = src.read(1).astype(np.float32)
+                transform = src.transform
+                meta = src.meta.copy()
 
     if dem_nodata is not None:
         dem[dem == dem_nodata] = np.nan
 
-    # Compute grid spacing
     dx = transform.a
     dy = -transform.e
     cell_size = 0.5 * (dx + dy)
 
-    # Define convolution kernels for curvature approximation
     kernel_diag = np.array([[1, 0, 1],
                             [0, -4, 0],
                             [1, 0, 1]], dtype=np.float32) / (np.sqrt(2) * 4 * cell_size)
-    
+
     kernel_cross = np.array([[0, 1, 0],
-                              [1, -4, 1],
-                              [0, 1, 0]], dtype=np.float32) / (4 * cell_size)
+                             [1, -4, 1],
+                             [0, 1, 0]], dtype=np.float32) / (4 * cell_size)
 
     mask = np.isnan(dem)
-    dem_filled = np.where(mask, np.nanmean(dem), dem)  # simple in-fill to avoid convolution artifacts
+    dem_filled = np.where(mask, np.nanmean(dem), dem)
 
     c_diag = convolve(dem_filled, kernel_diag, mode='mirror')
     c_cross = convolve(dem_filled, kernel_cross, mode='mirror')
     curvature = c_diag + c_cross
-
-    # Mask invalid areas
     curvature[mask] = np.nan
 
-    # Normalize curvature (optional)
     curve_max = max(0.001, np.nanmax(np.abs(curvature)))
     curvature /= (2.0 * curve_max)
 
-    # Save result
-    meta.update(dtype='float32', count=1, nodata=np.nan)
-    with rasterio.open(curvature_path, 'w', **meta) as dst:
-        dst.write(curvature.astype(np.float32), 1)
+    # If DEM was originally EPSG:4326, reproject curvature back
+    if dem_crs.to_epsg() == 4326:
+        with rasterio.open(dem_path) as ref_src:
+            dst_meta = ref_src.meta.copy()
+            dst_meta.update(dtype='float32', count=1, nodata=np.nan)
+            with rasterio.open(curvature_path, 'w', **dst_meta) as dst:
+                reproject(
+                    source=curvature,
+                    destination=rasterio.band(dst, 1),
+                    src_transform=transform,
+                    src_crs=f"EPSG:{utm_epsg}",
+                    dst_transform=ref_src.transform,
+                    dst_crs=ref_src.crs,
+                    resampling=Resampling.bilinear
+                )
+    else:
+        meta.update(dtype='float32', count=1, nodata=np.nan)
+        with rasterio.open(curvature_path, 'w', **meta) as dst:
+            dst.write(curvature.astype(np.float32), 1)
 
     print(f"Curvature saved to {curvature_path}")
     return curvature_path
@@ -221,7 +299,155 @@ def write_downscaled_to_netcdf(
 
     print(f"\nSaved NetCDF: {out_nc}")
 
+def convert_micromet_to_s3m_inputs(
+    micromet_output_dir: str,
+    output_dir: str,
+    dem_path: str,
+    nodata_value: float = -9999.0,
+    n_jobs: int = 4
+):
+    os.makedirs(output_dir, exist_ok=True)
 
+    # --- Load and reproject DEM to WGS84 ---
+    with rasterio.open(dem_path) as src:
+        terrain_src = src.read(1).astype(np.float32)
+        src_crs = src.crs
+        transform = src.transform
+        height, width = src.height, src.width
+        bounds = src.bounds
+
+    dst_crs = CRS.from_epsg(4326)
+    dst_transform, dst_width, dst_height = calculate_default_transform(
+        src_crs, dst_crs, width, height, *bounds
+    )
+
+    terrain = np.full((dst_height, dst_width), nodata_value, dtype=np.float32)
+    reproject(
+        source=terrain_src,
+        destination=terrain,
+        src_transform=transform,
+        src_crs=src_crs,
+        dst_transform=dst_transform,
+        dst_crs=dst_crs,
+        resampling=Resampling.bilinear
+    )
+
+    # --- Create x, y coordinates and flip if needed ---
+    x_coords = np.arange(dst_width) * dst_transform.a + dst_transform.c + dst_transform.a / 2
+    y_coords = np.arange(dst_height) * dst_transform.e + dst_transform.f + dst_transform.e / 2
+
+    if y_coords[1] > y_coords[0]:  # flip to top-to-bottom
+        y_coords = y_coords[::-1]
+        terrain = terrain[::-1]
+
+    lon2d, lat2d = np.meshgrid(x_coords, y_coords)
+
+    # --- Load Micromet variables ---
+    var_map = {
+        "Temperature": ("t2m", "AirTemperature"),
+        "SW": ("SW", "IncRadiation"),
+        "RH": ("RH", "RelHumidity"),
+        "P": ("P", "Rain"),
+    }
+
+    var_data = {}
+    time_index = None
+
+    for folder, (var_in, var_out) in var_map.items():
+        paths = sorted(glob.glob(os.path.join(micromet_output_dir, folder, "*.nc")))
+        if not paths:
+            continue
+        ds = xr.open_mfdataset(paths, combine="by_coords")
+        var_array = ds[var_in]
+        if time_index is None:
+            time_index = pd.to_datetime(var_array.time.values)
+        var_data[var_out] = var_array
+
+    if time_index is None or time_index.empty:
+        raise RuntimeError("No time data found in Micromet outputs")
+
+    # --- Write one NetCDF.gz file per timestep ---
+    def _write_one_s3m_file(i, t):
+        import rioxarray  # needed in subprocess
+        date_str = pd.to_datetime(t).strftime("%Y%m%d%H%M")
+        filename_nc = os.path.join(output_dir, f"MeteoData_{date_str}.nc")
+        filename_gz = filename_nc + ".gz"
+    
+        if os.path.exists(filename_gz):
+            return
+    
+        data_vars = {}
+    
+        # Interpolation is done using original y_coords
+        for var_name in ["Rain", "AirTemperature", "IncRadiation", "RelHumidity"]:
+            if var_name in var_data:
+                data = var_data[var_name].isel(time=i).interp(
+                    x=x_coords, y=y_coords, method="nearest"
+                ).values.astype(np.float32)
+                data[np.isnan(data)] = nodata_value
+                if var_name == "AirTemperature":
+                    data[data != nodata_value] = data[data != nodata_value] - 273.15
+            else:
+                data = np.full((dst_height, dst_width), nodata_value, dtype=np.float32)
+    
+            # Always flip vertically to match terrain
+            data = data[::-1, :]
+    
+            da = xr.DataArray(
+                data,
+                dims=("y", "x"),
+                coords={"x": x_coords, "y": y_coords[::-1]},
+                attrs={"coordinates": "longitude latitude"}
+            )
+            data_vars[var_name] = da
+    
+        # Flip static fields
+        data_vars["terrain"] = xr.DataArray(
+            terrain[::-1, :],
+            dims=("y", "x"),
+            coords={"x": x_coords, "y": y_coords[::-1]},
+            attrs={"coordinates": "longitude latitude"}
+        )
+        data_vars["longitude"] = xr.DataArray(
+            lon2d[::-1, :],
+            dims=("y", "x"),
+            coords={"x": x_coords, "y": y_coords[::-1]}
+        )
+        data_vars["latitude"] = xr.DataArray(
+            lat2d[::-1, :],
+            dims=("y", "x"),
+            coords={"x": x_coords, "y": y_coords[::-1]},
+            attrs={"_FillValue": nodata_value}
+        )
+    
+        # Build dataset
+        ds_out = xr.Dataset(data_vars)
+        ds_out = ds_out.rio.write_transform(dst_transform)
+        ds_out = ds_out.rio.write_crs(dst_crs)
+    
+        ds_out.attrs.update({
+            "ncols": dst_width,
+            "nrows": dst_height,
+            "nodata_value": int(nodata_value),
+            "xllcorner": float(dst_transform.c),
+            "yllcorner": float(dst_transform.f + dst_height * dst_transform.e),
+            "cellsize": float(dst_transform.a)
+        })
+    
+        ds_out.to_netcdf(filename_nc)
+    
+        with open(filename_nc, 'rb') as f_in, gzip.open(filename_gz, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        os.remove(filename_nc)
+
+
+
+    # --- Run in parallel ---
+    Parallel(n_jobs=n_jobs)(
+        delayed(_write_one_s3m_file)(i, t) for i, t in enumerate(time_index)
+    )
+
+    print(f"\n 3M .nc.gz export complete: {output_dir} ")
 
 
 

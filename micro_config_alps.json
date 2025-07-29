@@ -1,18 +1,30 @@
-{ 
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet",
-  "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet/model_extent_DEM_500m_wgs84.tif",
+{
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet_4326",
+  "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/static_layers_s3m_alps/model_extent_DEM_500m_wgs84.tif",
   "era_file": null,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
-  "variables": ["temperature"],
-  "start_date": "1990-01-01",
-  "end_date": "2025-01-31",
-  "time_step": "24H", 
-  "jobs_parallel_downscale": -1,
-  "jobs_parallel_download": -1,
+  "variables_to_downscale": {
+    "t_air": "y",
+    "sw_radiation": "y",
+    "relative_humidity": "y",
+    "precipitation": "y",
+    "wind": "n",
+    "lw_radiation": "n"
+  },
+  "start_date": "2021-10-01",
+  "end_date": "2022-09-30",
+  "aggregate_daily": "y",
+  "dem_nodata": -9999,
+  "auto_calibrate_lapse_rate": "n",
+  "generate_s3m_input": "y",
   "custom_lapse_rates": {
     "temperature": {
-      "monthly": [8.1,8.1,7.7,6.8,5.5,4.7,4.4,5.9,7.1,7.8,8.1,8.2]
+      "monthly": null
+    },
+    "precipitation": {
+      "monthly": null
     }
-  }
+  },
+  "jobs_parallel_downscale": -1,
+  "jobs_parallel_download": -1
 }
-

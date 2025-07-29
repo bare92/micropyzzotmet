@@ -29,16 +29,21 @@ def run_temperature(curr_climate_file, dem_path, working_directory, variables_to
     )
 
 # Shortwave Radiation
+# def run_shortwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+#     output_folder = os.path.join(working_directory, 'outputs', 'SW')
+#     downscale_SW_original(
+#         dem_path, curr_climate_file, output_folder,
+#         z_700=3000, S0=1370.0,
+#         custom_lapse_rate=custom_lapse_rates.get("temperature", {}).get("monthly"),
+#         calibrate_lapse_rate=calibrate_lapse_rate,
+#         dem_nodata=dem_nodata
+#     )
+    
+# Shortwave Radiation custom that uses era5 input ssrd
 def run_shortwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
     output_folder = os.path.join(working_directory, 'outputs', 'SW')
-    downscale_SW_original(
-        dem_path, curr_climate_file, output_folder,
-        z_700=3000, S0=1370.0,
-        custom_lapse_rate=custom_lapse_rates.get("temperature", {}).get("monthly"),
-        calibrate_lapse_rate=calibrate_lapse_rate,
-        dem_nodata=dem_nodata
-    )
-
+    downscale_SW_custom(dem_path, curr_climate_file, output_folder, dem_nodata=dem_nodata)
+    
 # Relative Humidity
 def run_relative_humidity(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
     output_folder = os.path.join(working_directory, 'outputs', 'RH')
@@ -156,6 +161,18 @@ def run_micropezzomet(config_path):
     if parse_yes_no_flag(variables_to_downscale.get("lw_radiation", "n"), "lw_radiation"):
         Parallel(n_jobs=jobs_downscaling)(
             delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+        )
+        
+    # Optionally generate S3M-compatible inputs
+    generate_s3m = parse_yes_no_flag(config.get("generate_s3m_input", "n"), "generate_s3m_input")
+    if generate_s3m:
+        print("\nCreating daily S3M input files in outputs/s3m ...")
+        convert_micromet_to_s3m_inputs(
+            micromet_output_dir=os.path.join(working_directory, "outputs"),
+            output_dir=os.path.join(working_directory, "outputs", "s3m"),
+            dem_path=dem_path,
+            nodata_value=dem_nodata if dem_nodata is not None else -9999,
+            n_jobs= -1 #  -1 for all available cores
         )
 
 

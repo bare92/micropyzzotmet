@@ -48,20 +48,23 @@ def get_tiff_extent_latlon(tiff_path, buffer=0.4):
 
 def aggregate_to_daily(ds):
     mean_vars = ['t2m', 'd2m', 'u10', 'v10', 'sp', 'strd', 'ssrd']
-    sum_vars = ['tp']
+    sum_vars = []
 
     agg_dict = {}
     for var in ds.data_vars:
-        if var in mean_vars:
+        if var == 'tp':
+            # Keep the last hourly value of the day
+            agg_dict[var] = ds[var].resample(valid_time="1D").last()
+        elif var in mean_vars:
             agg_dict[var] = ds[var].resample(valid_time="1D").mean()
         elif var in sum_vars:
             agg_dict[var] = ds[var].resample(valid_time="1D").sum()
         else:
             agg_dict[var] = ds[var].resample(valid_time="1D").mean()
+
     return xr.Dataset(agg_dict)
 
 def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
-    
     end = (start + pd.offsets.MonthEnd(0)) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
     tag = "_daily" if aggregate_daily else ""
     surface_file = os.path.join(output_dir, f"era_{start.strftime('%Y_%m')}{tag}.nc")
@@ -73,26 +76,57 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
     ds_surface = ds_month[surface_vars]
 
     # Convert longitude to [-180, 180]
-    
     longitudes = ds_surface['longitude'].values
     longitudes = np.where(longitudes > 180, longitudes - 360, longitudes)
     ds_surface = ds_surface.assign_coords(longitude=("longitude", longitudes))
     ds_surface = ds_surface.sortby('longitude')
 
-    if aggregate_daily:
-        ds_surface = aggregate_to_daily(ds_surface)
-        seconds = 86400
-    else:
-        seconds = 3600
-    
-    # Convert radiation variables from J/m² to W/m²
+    # Handle precipitation
+    if 'tp' in ds_surface:
+        tp_mm = ds_surface['tp'] * 1000
+        if not aggregate_daily:
+            tp_mm_hourly = tp_mm.groupby('valid_time.dayofyear').map(
+                lambda group: xr.concat(
+                    [group.isel(valid_time=0), group.diff('valid_time')],
+                    dim='valid_time'
+                )
+            )
+            tp_mm_hourly.attrs['units'] = 'mm'
+            tp_mm_hourly.attrs['description'] = 'Converted from m to mm; Converted to mm/hour from daily cumulative'
+            ds_surface['tp'] = tp_mm_hourly
+        else:
+            tp_mm.attrs['units'] = 'mm'
+            tp_mm.attrs['description'] = 'Converted from m to mm'
+            ds_surface['tp'] = tp_mm
+
+    # Handle radiation (shortwave and longwave)
     for var in ['ssrd', 'strd']:
         if var in ds_surface:
-            ds_surface[var] = ds_surface[var] / seconds
-            ds_surface[var].attrs['units'] = 'W m-2'
-            ds_surface[var].attrs['description'] = 'Converted from J m-2 by dividing by time interval in seconds'
+            rad_j = ds_surface[var]
+            if not aggregate_daily:
+                # Convert to hourly increments
+                rad_hourly = rad_j.groupby('valid_time.dayofyear').map(
+                    lambda group: xr.concat(
+                        [group.isel(valid_time=0), group.diff('valid_time')],
+                        dim='valid_time'
+                    )
+                )
+                # Convert J/m² to W/m²
+                rad_wm2 = rad_hourly / 3600
+                rad_wm2.attrs['units'] = 'W m-2'
+                rad_wm2.attrs['description'] = 'Converted from J m-2 to W m-2 using hourly cumulative diff'
+                ds_surface[var] = rad_wm2
+            else:
+                # If aggregating daily: keep last value and divide by 86400 (s/day)
+                rad_daily = rad_j.resample(valid_time="1D").last() / 86400
+                rad_daily.attrs['units'] = 'W m-2'
+                rad_daily.attrs['description'] = 'Daily average from cumulative J m-2 (last of day / 86400)'
+                ds_surface[var] = rad_daily
 
-        
+    # Aggregate if needed (already handled tp and radiation separately)
+    if aggregate_daily:
+        ds_surface = aggregate_to_daily(ds_surface)
+
     # Assign coordinate attributes explicitly
     ds_surface.latitude.attrs.update(units='degrees_north', standard_name='latitude', axis='Y')
     ds_surface.longitude.attrs.update(units='degrees_east', standard_name='longitude', axis='X')
@@ -100,8 +134,10 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
     # Assign CRS explicitly with rioxarray
     ds_surface = ds_surface.rio.write_crs("EPSG:4326", inplace=True)
 
-
+    # Save to NetCDF
     ds_surface.to_netcdf(surface_file)
+
+
 
 
 

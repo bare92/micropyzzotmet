@@ -14,9 +14,9 @@
   * Relative Humidity
   * Precipitation
   * Wind
-  * Longwave Radiation (to be implemented)
-* Uses custom or default monthly lapse rates
-* Generates GeoTIFFs (will be updated)
+  * Longwave Radiation
+* Uses custom, default, or computed lapse rates
+* Generates monthly NetCDF
 * Parallel processing support
 
 ---
@@ -27,7 +27,7 @@
 
 ```bash
 git clone [https://github.com/yourusername/micropezzottomet.git](https://github.com/bare92/micropyzzotmet)
-cd micropezzottomet
+cd micropyzzotmet
 ```
 
 ### 2. Install requirements
@@ -74,8 +74,8 @@ working_directory/
 
 ```json
 {
-  "working_directory": "/path/to/workspace",
-  "dem_file": "/path/to/dem.tif",
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet_self_calibrate",
+  "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet/Maipo_dem.tif",
   "era_file": null,
   "earthdatahub_pat": "your_token_here",
   "variables_to_downscale": {
@@ -86,17 +86,23 @@ working_directory/
     "wind": "y",
     "lw_radiation": "y"
   },
-  "start_date": "2017-04-01",
-  "end_date": "2018-03-31",
-  "time_step": "24H",
-  "dem_nodata": -32768,
-  "jobs_parallel_downscale": -1,
-  "jobs_parallel_download": -1,
+  "start_date": "2002-04-01",
+  "end_date": "2025-03-31",
+  "aggregate_daily": "y",
+  "dem_nodata": null,
+  "auto_calibrate_lapse_rate": "y",
   "custom_lapse_rates": {
-    "temperature": {"monthly": null},
-    "precipitation": {"monthly": null}
-  }
+    "temperature": {
+      "monthly": null
+    },
+    "precipitation": {
+      "monthly": null
+    }
+  },
+  "jobs_parallel_downscale": -1,
+  "jobs_parallel_download": -1
 }
+
 ```
 
 * Use `null` for default lapse rates (Liston and Elder, 2006)
