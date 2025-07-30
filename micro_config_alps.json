@@ -11,8 +11,8 @@
     "wind": "n",
     "lw_radiation": "n"
   },
-  "start_date": "2021-10-01",
-  "end_date": "2022-09-30",
+  "start_date": "2010-10-01",
+  "end_date": "2024-09-30",
   "aggregate_daily": "y",
   "dem_nodata": -9999,
   "auto_calibrate_lapse_rate": "n",

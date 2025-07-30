@@ -135,6 +135,29 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
     print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
 
 
+def solar_angles(lat_rad, slope_rad, aspect_rad, delta, omega):
+    # Solar zenith angle
+    cosZ = np.clip(
+        np.sin(lat_rad) * np.sin(delta) + np.cos(lat_rad) * np.cos(delta) * np.cos(omega),
+        0, 1
+    )
+    sinZ = np.sqrt(1 - cosZ**2)
+
+    # Solar azimuth (phi): measured from south = 0°, west = +90°, east = -90°
+    sin_phi = np.cos(delta) * np.sin(omega) / np.maximum(sinZ, 1e-6)
+    sin_phi = np.clip(sin_phi, -1, 1)
+    phi = np.arcsin(sin_phi)
+
+    # Correct phi quadrant
+    phi = np.where(omega > 0, np.pi - phi, phi - np.pi)
+
+    # cos(i): incidence angle on slope
+    cos_i = np.clip(
+        np.cos(slope_rad) * cosZ +
+        np.sin(slope_rad) * sinZ * np.cos(phi - aspect_rad),
+        0, 1
+    )
+    return cosZ, cos_i
 
 
 
@@ -285,9 +308,33 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
         out_nc=out_nc
     )
 
+def solar_angles(lat_rad, slope_rad, aspect_rad, delta, omega):
+    # Solar zenith angle
+    cosZ = np.clip(
+        np.sin(lat_rad) * np.sin(delta) + np.cos(lat_rad) * np.cos(delta) * np.cos(omega),
+        0, 1
+    )
+    sinZ = np.sqrt(1 - cosZ**2)
+
+    # Solar azimuth (phi): measured from south = 0°, west = +90°, east = -90°
+    sin_phi = np.cos(delta) * np.sin(omega) / np.maximum(sinZ, 1e-6)
+    sin_phi = np.clip(sin_phi, -1, 1)
+    phi = np.arcsin(sin_phi)
+
+    # Correct phi quadrant
+    phi = np.where(omega > 0, np.pi - phi, phi - np.pi)
+
+    # cos(i): incidence angle on slope
+    cos_i = np.clip(
+        np.cos(slope_rad) * cosZ +
+        np.sin(slope_rad) * sinZ * np.cos(phi - aspect_rad),
+        0, 1
+    )
+    return cosZ, cos_i
 
 
 def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodata=None):
+
     import numpy as np
     import xarray as xr
     import os
@@ -355,20 +402,8 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
             day_angle = 2 * np.pi * (date.dayofyear + 10) / 365
             delta = -23.44 * np.pi / 180 * np.cos(day_angle)
             omega = 0  # solar noon
-            cosZ = np.clip(
-                np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta),
-                0, 1
-            )
-            phi = np.arcsin(np.clip(
-                np.cos(delta) * np.sin(omega) / np.maximum(np.sin(np.arccos(cosZ)), 1e-6),
-                -1, 1
-            ))
 
-            cos_i = np.clip(
-                np.cos(slope_rad) * cosZ +
-                np.sin(slope_rad) * np.sqrt(1 - cosZ**2) * np.cos(phi - aspect_rad),
-                0, 1
-            )
+            cosZ, cos_i = solar_angles(lat_mean_rad, slope_rad, aspect_rad, delta, omega)
 
             Qsi_daily = ssrd_resampled * (cos_i / (cosZ + 1e-6))
             Qsi_daily[dem_mask] = np.nan
@@ -385,20 +420,8 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
             hour = date_i.hour + date_i.minute / 60.0
             omega = np.pi * (hour - 12) / 12  # radians
 
-            cosZ = np.clip(
-                np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega),
-                0, 1
-            )
-            phi = np.arcsin(np.clip(
-                np.cos(delta) * np.sin(omega) / np.maximum(np.sin(np.arccos(cosZ)), 1e-6),
-                -1, 1
-            ))
 
-            cos_i = np.clip(
-                np.cos(slope_rad) * cosZ +
-                np.sin(slope_rad) * np.sqrt(1 - cosZ**2) * np.cos(phi - aspect_rad),
-                0, 1
-            )
+            cosZ, cos_i = solar_angles(lat_mean_rad, slope_rad, aspect_rad, delta, omega)
 
             Qsi_hourly = ssrd_resampled * (cos_i / (cosZ + 1e-6))
             Qsi_hourly[dem_mask] = np.nan
