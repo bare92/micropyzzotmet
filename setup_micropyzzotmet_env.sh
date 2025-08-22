@@ -25,8 +25,6 @@ conda activate $ENV_NAME
 # Install required packages
 echo "Installing required packages..."
 conda install -y \
-  gdal \
-  spyder \
   numpy \
   pandas \
   xarray \
@@ -38,7 +36,18 @@ conda install -y \
   matplotlib \
   tqdm \
   joblib \
-  pvlib
+  pvlib \
+  gdal \
+  zarr \
+  fsspec \
+  s3fs \
+  dask \
+  distributed \
+  netCDF4 \
+  h5netcdf
+
+# Optional: install spyder if you want an IDE in this environment
+conda install -y spyder
 
 echo "Environment '$ENV_NAME' is ready with Python $PYTHON_VERSION."
 

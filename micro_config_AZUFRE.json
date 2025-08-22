@@ -6,7 +6,7 @@
     "lat_max": 6997000,
     "lon_min": 271000,
     "lon_max": 531500
-    },
+  },
   "download_dem_epsg": 32719,  
   "download_dem_resolution": 50,  
   "output_filename_dem": "extratropical_andes_damain_DEM.tif",

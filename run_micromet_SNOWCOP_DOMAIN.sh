@@ -6,7 +6,7 @@ set -e
 # Activate conda environment
 echo "Activating conda environment 'microenv'..."
 source $(conda info --base)/etc/profile.d/conda.sh
-conda activate swe3
+conda activate microenv
 
 # Path to your Python script and config
 SCRIPT_PATH="./main_micromet.py"

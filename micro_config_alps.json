@@ -1,6 +1,15 @@
 {
   "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet_4326",
   "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/static_layers_s3m_alps/model_extent_DEM_500m_wgs84.tif",
+    "download_dem_extent": {
+  "lat_min": null,
+  "lat_max": null,
+  "lon_min": null,
+  "lon_max": null
+  },
+  "download_dem_epsg": null,  
+  "download_dem_resolution": null,  
+  "output_filename_dem": null,
   "era_file": null,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
   "variables_to_downscale": {
