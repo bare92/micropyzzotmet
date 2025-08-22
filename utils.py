@@ -19,6 +19,12 @@ import gzip
 import shutil
 from joblib import Parallel, delayed
 from rasterio.warp import reproject, calculate_default_transform, Resampling
+import rioxarray
+from pyproj import Transformer
+from rasterio.enums import Resampling
+import rasterio
+from affine import Affine
+
 
 def parse_yes_no_flag(value, var_name=""):
     """
@@ -67,6 +73,139 @@ def load_dem(dem_path):
         dem_meta = src.meta
         dem_transform = src.transform
     return dem_data, dem_meta, dem_transform
+
+
+
+def lon_to_360(lon):
+    return lon % 360
+
+def check_extent_alignment(min_val, max_val, res):
+    size = max_val - min_val
+    steps = size / res
+    if not np.isclose(steps, round(steps)):
+        suggested_max = min_val + round(steps) * res
+        return False, suggested_max
+    return True, None
+
+def create_reference_grid(extent, resolution, crs):
+    xmin, ymin, xmax, ymax = extent
+    width = int(round((xmax - xmin) / resolution))
+    height = int(round((ymax - ymin) / resolution))
+
+    transform = Affine.translation(xmin, ymax) * Affine.scale(resolution, -resolution)
+    coords = {
+        "y": np.linspace(ymax - resolution / 2, ymin + resolution / 2, height),
+        "x": np.linspace(xmin + resolution / 2, xmax - resolution / 2, width)
+    }
+    dummy_data = np.full((height, width), np.nan)
+
+    da = xr.DataArray(
+        dummy_data,
+        coords=coords,
+        dims=("y", "x"),
+        name="dummy"
+    )
+    da.rio.write_transform(transform, inplace=True)
+    da.rio.write_crs(crs, inplace=True)
+    return da, width, height
+
+def download_and_save_dem_from_config(config):
+    if config["dem_file"] is not None:
+        return config["dem_file"]
+
+    extent = config.get("download_dem_extent")
+    epsg = config.get("download_dem_epsg", 4326)
+    resolution_m = config.get("download_dem_resolution", 30)
+    base_folder = config["working_directory"]
+    output_folder = os.path.join(base_folder, "inputs", "dem")
+    dem_nodata = config.get("dem_nodata", -9999)
+    os.makedirs(output_folder, exist_ok=True)
+
+    output_filename = config.get("output_filename_dem", "downloaded_dem.tif")
+    output_path = os.path.join(output_folder, output_filename)
+    pat = config["earthdatahub_pat"]
+
+    # Transform input extent to EPSG:4326
+    transformer_to_4326 = Transformer.from_crs(f"EPSG:{epsg}", "EPSG:4326", always_xy=True)
+    lon_min, lat_min = transformer_to_4326.transform(extent["lon_min"], extent["lat_min"])
+    lon_max, lat_max = transformer_to_4326.transform(extent["lon_max"], extent["lat_max"])
+
+    # Apply 0.5° buffer for download
+    buffer_deg = 0.5
+    lon_min_buf = lon_min - buffer_deg
+    lon_max_buf = lon_max + buffer_deg
+    lat_min_buf = lat_min - buffer_deg
+    lat_max_buf = lat_max + buffer_deg
+
+    # Load Copernicus DEM
+    url = f"https://edh:{pat}@data.earthdatahub.destine.eu/copernicus-dem/GLO-30-v0.zarr"
+    ds = xr.open_dataset(
+        url,
+        engine="zarr",
+        chunks={},
+        decode_coords="all",
+        mask_and_scale=False
+    )
+
+    lat_name = 'lat' if 'lat' in ds.dims else 'latitude'
+    lon_name = 'lon' if 'lon' in ds.dims else 'longitude'
+
+    if ds[lon_name].max() > 180:
+        lon_min_buf = lon_to_360(lon_min_buf)
+        lon_max_buf = lon_to_360(lon_max_buf)
+
+    lat_vals = ds[lat_name].values
+    lat_slice = slice(lat_max_buf, lat_min_buf) if lat_vals[0] > lat_vals[-1] else slice(lat_min_buf, lat_max_buf)
+    lon_slice = slice(lon_min_buf, lon_max_buf)
+
+    ds_subset = ds.sel({lat_name: lat_slice, lon_name: lon_slice})
+    if ds_subset.dsm.size == 0:
+        raise ValueError("Selected area contains no data. Check coordinate bounds and try again.")
+
+    ds_subset = ds_subset.rename({lat_name: 'latitude', lon_name: 'longitude'})
+    da = ds_subset['dsm']
+    da.rio.write_crs("EPSG:4326", inplace=True)
+
+    # Build reference target grid from config-defined extent
+    xmin = extent["lon_min"]
+    xmax = extent["lon_max"]
+    ymin = extent["lat_min"]
+    ymax = extent["lat_max"]
+    target_extent = (xmin, ymin, xmax, ymax)
+
+    target_grid, width, height = create_reference_grid(
+        extent=target_extent,
+        resolution=resolution_m,
+        crs=f"EPSG:{epsg}"
+    )
+
+    # Reproject using reproject_match
+    da_matched = da.rio.reproject_match(target_grid, resampling=Resampling.nearest)
+
+    # Final check of extent alignment
+    left, bottom, right, top = target_extent
+    x_aligned, suggested_right = check_extent_alignment(left, right, resolution_m)
+    y_aligned, suggested_top = check_extent_alignment(bottom, top, resolution_m)
+
+    if not x_aligned or not y_aligned:
+        raise ValueError(
+            f" The crop extent is not aligned with resolution {resolution_m}m.\n"
+            f"Suggested bounds (EPSG:{epsg}):\n"
+            f"  X: {left} to {suggested_right}\n"
+            f"  Y: {bottom} to {suggested_top}\n"
+            f"Please update your extent or resolution to match the grid."
+        )
+
+    # Save
+    da_matched = da_matched.where(~np.isnan(da_matched), other=dem_nodata)
+
+    # Set nodata metadata and save
+    da_matched.rio.write_nodata(dem_nodata, inplace=True)
+    da_matched.rio.to_raster(output_path)
+    print(f" DEM downloaded, matched to config-defined grid and saved to: {output_path}")
+    return output_path
+
+
 
 def load_era_data(era_path, variables, start_date=None, end_date=None):
     era_ds = xr.open_dataset(era_path)

@@ -23,6 +23,8 @@ from utils import write_downscaled_to_netcdf
 from scipy.stats import linregress
 from scipy import interpolate as spint
 import copy
+import pvlib
+
     
 def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
    
@@ -133,31 +135,6 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
     )
 
     print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
-
-
-def solar_angles(lat_rad, slope_rad, aspect_rad, delta, omega):
-    # Solar zenith angle
-    cosZ = np.clip(
-        np.sin(lat_rad) * np.sin(delta) + np.cos(lat_rad) * np.cos(delta) * np.cos(omega),
-        0, 1
-    )
-    sinZ = np.sqrt(1 - cosZ**2)
-
-    # Solar azimuth (phi): measured from south = 0°, west = +90°, east = -90°
-    sin_phi = np.cos(delta) * np.sin(omega) / np.maximum(sinZ, 1e-6)
-    sin_phi = np.clip(sin_phi, -1, 1)
-    phi = np.arcsin(sin_phi)
-
-    # Correct phi quadrant
-    phi = np.where(omega > 0, np.pi - phi, phi - np.pi)
-
-    # cos(i): incidence angle on slope
-    cos_i = np.clip(
-        np.cos(slope_rad) * cosZ +
-        np.sin(slope_rad) * sinZ * np.cos(phi - aspect_rad),
-        0, 1
-    )
-    return cosZ, cos_i
 
 
 
@@ -308,30 +285,6 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
         out_nc=out_nc
     )
 
-def solar_angles(lat_rad, slope_rad, aspect_rad, delta, omega):
-    # Solar zenith angle
-    cosZ = np.clip(
-        np.sin(lat_rad) * np.sin(delta) + np.cos(lat_rad) * np.cos(delta) * np.cos(omega),
-        0, 1
-    )
-    sinZ = np.sqrt(1 - cosZ**2)
-
-    # Solar azimuth (phi): measured from south = 0°, west = +90°, east = -90°
-    sin_phi = np.cos(delta) * np.sin(omega) / np.maximum(sinZ, 1e-6)
-    sin_phi = np.clip(sin_phi, -1, 1)
-    phi = np.arcsin(sin_phi)
-
-    # Correct phi quadrant
-    phi = np.where(omega > 0, np.pi - phi, phi - np.pi)
-
-    # cos(i): incidence angle on slope
-    cos_i = np.clip(
-        np.cos(slope_rad) * cosZ +
-        np.sin(slope_rad) * sinZ * np.cos(phi - aspect_rad),
-        0, 1
-    )
-    return cosZ, cos_i
-
 
 def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodata=None):
 
@@ -343,6 +296,7 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
     from rasterio.warp import reproject, Resampling
     from rasterio.transform import from_origin
     from glob import glob as glob_glob
+    
 
     # Get slope and aspect maps
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
@@ -374,6 +328,15 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
     lon2d, lat2d = np.meshgrid(lon, lat)
     center_lat = (lat[0] + lat[-1]) / 2
     lat_mean_rad = np.radians(center_lat)
+    center_lon = (lon[0] + lon[-1]) / 2
+    lon_mean_rad = np.radians(center_lon)
+    
+    latitude = np.degrees(lat_mean_rad)        # from your domain center
+    longitude = np.degrees(lon_mean_rad)        # from your domain center
+    
+    # Step 1: Create a location object
+    location = pvlib.location.Location(latitude, longitude)
+
 
     dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
@@ -396,38 +359,68 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
                   src_transform=era_transform, src_crs=era_crs,
                   dst_transform=dem_transform, dst_crs=dem_crs,
                   resampling=Resampling.bilinear)
+        
 
         if is_daily_data:
-            # Solar declination and solar noon
-            day_angle = 2 * np.pi * (date.dayofyear + 10) / 365
-            delta = -23.44 * np.pi / 180 * np.cos(day_angle)
-            omega = 0  # solar noon
-
-            cosZ, cos_i = solar_angles(lat_mean_rad, slope_rad, aspect_rad, delta, omega)
-
+            # Estimate UTC time of solar noon based on longitude
+            solar_noon_utc = date.normalize() + pd.Timedelta(hours=12 - location.longitude / 15)
+        
+            # Ensure timezone-aware datetime (UTC)
+            solar_noon_utc = solar_noon_utc.tz_localize("UTC")
+        
+            # Get solar position at estimated solar noon
+            solpos = location.get_solarposition(solar_noon_utc)
+        
+            # Extract solar angles
+            zenith = np.radians(solpos['zenith'].values[0])   # radians
+            azimuth = np.radians(solpos['azimuth'].values[0]) # radians
+            cosZ = np.cos(zenith)
+        
+            # Compute incidence angle on slope
+            incidence = pvlib.irradiance.aoi(
+                surface_tilt=np.degrees(slope_rad),
+                surface_azimuth=np.degrees(aspect_rad),
+                solar_zenith=solpos['zenith'].values[0],
+                solar_azimuth=solpos['azimuth'].values[0]
+            )
+        
+            cos_i = np.clip(np.cos(np.radians(incidence)), 0, 1)
+        
+            # Topographic correction
             Qsi_daily = ssrd_resampled * (cos_i / (cosZ + 1e-6))
             Qsi_daily[dem_mask] = np.nan
             Qsi_all.append(Qsi_daily[np.newaxis, ...])
             time_list.append(date)
-
+    
         else:
             # Hourly case — one file per hour
-            date_i = pd.to_datetime(date)
-            hour_angle = 2 * np.pi * (date_i.dayofyear + 10) / 365
-            delta = -23.44 * np.pi / 180 * np.cos(hour_angle)
-
-            # Compute hour angle ω from local solar time
-            hour = date_i.hour + date_i.minute / 60.0
-            omega = np.pi * (hour - 12) / 12  # radians
-
-
-            cosZ, cos_i = solar_angles(lat_mean_rad, slope_rad, aspect_rad, delta, omega)
-
+            date_i = pd.to_datetime(date).tz_localize("UTC")  # ensure timezone-aware
+        
+            # Get solar position at the hourly time
+            solpos = location.get_solarposition(date_i)
+        
+            # Extract solar angles
+            zenith = np.radians(solpos['zenith'].values[0])   # radians
+            azimuth = np.radians(solpos['azimuth'].values[0]) # radians
+            cosZ = np.cos(zenith)                             # cos(zenith)
+        
+            # Compute incidence angle on slope
+            incidence = pvlib.irradiance.aoi(
+                surface_tilt=np.degrees(slope_rad),
+                surface_azimuth=np.degrees(aspect_rad),
+                solar_zenith=solpos['zenith'].values[0],
+                solar_azimuth=solpos['azimuth'].values[0]
+            )
+        
+            cos_i = np.clip(np.cos(np.radians(incidence)), 0, 1)
+        
+            # Apply topographic correction
             Qsi_hourly = ssrd_resampled * (cos_i / (cosZ + 1e-6))
             Qsi_hourly[dem_mask] = np.nan
+        
             Qsi_all.append(Qsi_hourly[np.newaxis, ...])
             time_list.append(date_i)
-
+            
     write_downscaled_to_netcdf(
         variables_dict={"SW": (Qsi_all, "W m-2", "Topographically corrected shortwave radiation")},
         time_list=time_list,

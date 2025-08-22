@@ -85,15 +85,24 @@ def run_longwave(curr_climate_file, dem_path, working_directory, variables_to_do
 
 
 def run_micropezzomet(config_path):
+    
     dem_nodata = None
     
     config = load_config(config_path)
     dem_nodata = config.get("dem_nodata", None)
 
     working_directory = config["working_directory"]
+    
+    create_full_micromet_folder_structure(base_path=working_directory)
+    
     start_date = config["start_date"]
     end_date = config["end_date"]
+    
     dem_path = config["dem_file"]
+    if dem_path == None:
+        dem_path = download_and_save_dem_from_config(config)
+        
+    
     era_path = config["era_file"]
     pat_token = config["earthdatahub_pat"]
     aggregate_daily = config["aggregate_daily"]

@@ -1,6 +1,15 @@
 {
   "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet",
-  "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet/Maipo_dem.tif",
+  "dem_file": null,
+  "download_dem_extent": {
+  "lat_min": 6205000,
+  "lat_max": 6342500,
+  "lon_min": 366000,
+  "lon_max": 428500
+  },
+"download_dem_epsg": 32719,  
+"download_dem_resolution": 50,  
+  "output_filename_dem": "downloaded_dem.tif",
   "era_file": null,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
   "variables_to_downscale": {

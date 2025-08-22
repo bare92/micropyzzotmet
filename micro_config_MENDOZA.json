@@ -6,19 +6,20 @@
   "variables_to_downscale": {
     "t_air": "y",
     "sw_radiation": "y",
-    "relative_humidity": "y",
-    "precipitation": "y",
-    "wind": "y",
-    "lw_radiation": "y"
+    "relative_humidity": "n",
+    "precipitation": "n",
+    "wind": "n",
+    "lw_radiation": "n"
   },
   "start_date": "2017-04-01",
   "end_date": "2023-03-31",
   "aggregate_daily": "y",
   "dem_nodata": -32768,
-  "auto_calibrate_lapse_rate": "y",
+  "auto_calibrate_lapse_rate": "n",
+  "generate_s3m_input": "n",
   "custom_lapse_rates": {
     "temperature": {
-      "monthly": null
+      "monthly": [8.1, 7.9, 7.78, 7.76, 7.9, 8, 8.2, 8.4, 8.6, 8.7, 8.4, 8.32]
     },
     "precipitation": {
       "monthly": null
@@ -27,5 +28,4 @@
   "jobs_parallel_downscale": -1,
   "jobs_parallel_download": -1
 }
-
 
