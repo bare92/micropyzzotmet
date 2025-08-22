@@ -22,8 +22,8 @@ from rasterio.warp import reproject, calculate_default_transform, Resampling
 import rioxarray
 from pyproj import Transformer
 from rasterio.enums import Resampling
-import rasterio
 from affine import Affine
+from tempfile import TemporaryDirectory
 
 
 def parse_yes_no_flag(value, var_name=""):
@@ -217,8 +217,7 @@ def load_era_data(era_path, variables, start_date=None, end_date=None):
 
     return era_ds
 
-from rasterio.warp import calculate_default_transform, reproject, Resampling
-from tempfile import TemporaryDirectory
+
 
 def compute_slope_aspect(dem_path, working_directory):
     output_dir = os.path.join(working_directory, 'inputs', 'dem')

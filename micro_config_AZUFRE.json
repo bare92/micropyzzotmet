@@ -1,6 +1,15 @@
 {
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/AZUFRE_downscale_micromet",
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/AZUFRE_downscale_micromet2",
   "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Glaciers/Azufre/Sentinel2-new/01_TEST_auxiliary_folder/Sentinel2-new_DEM.tif",
+  "download_dem_extent": {
+    "lat_min": 5816500,
+    "lat_max": 6997000,
+    "lon_min": 271000,
+    "lon_max": 531500
+    },
+  "download_dem_epsg": 32719,  
+  "download_dem_resolution": 50,  
+  "output_filename_dem": "extratropical_andes_damain_DEM.tif",
   "era_file": null,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
   "variables_to_downscale": {
@@ -12,7 +21,7 @@
     "lw_radiation": "n"
   },
   "start_date": "2022-04-01",
-  "end_date": "2023-05-31",
+  "end_date": "2022-05-31",
   "aggregate_daily": "y",
   "dem_nodata": -32768,
   "auto_calibrate_lapse_rate": "n",

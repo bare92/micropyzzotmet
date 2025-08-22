@@ -111,9 +111,6 @@ def run_micropezzomet(config_path):
     dem_nodata = config.get("dem_nodata", None)
     calibrate_lapse_rate = parse_yes_no_flag(config["auto_calibrate_lapse_rate"], "n")
     
-
-    create_full_micromet_folder_structure(base_path=working_directory)
-
     if era_path is None:
         print("Downloading ERA5-Land data...")
         aggregate_daily = parse_yes_no_flag(aggregate_daily, "n")
