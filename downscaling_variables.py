@@ -923,7 +923,3 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
 
 
 
-
-
-
-

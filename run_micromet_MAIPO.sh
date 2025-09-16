@@ -15,6 +15,6 @@ CONFIG_PATH="./micro_config_MAIPO.json"
 echo "Running MicroMet downscaling..."
 python "$SCRIPT_PATH" "$CONFIG_PATH"
 
-echo "Done DK."
+echo "Done."
 
 

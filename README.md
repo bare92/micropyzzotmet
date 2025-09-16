@@ -30,13 +30,18 @@ git clone [https://github.com/yourusername/micropezzottomet.git](https://github.
 cd micropyzzotmet
 ```
 
-### 2. Install requirements
+## Environment Setup (via `setup_micropyzzotmet_env.sh`)
+
+You can set up all required dependencies using the provided script:
 
 ```bash
-METTERE COSA FARE
+# From the project root
+chmod +x setup_micropyzzotmet_env.sh
+./setup_micropyzzotmet_env.sh
 ```
+Follow any on-screen instructions that the script prints (e.g., activating a conda/virtualenv).
 
-!! Make sure you also have `GDAL` installed and accessible from command line (used for slope/aspect computation).
+---
 
 ### 3. Prepare your config file
 
@@ -70,30 +75,54 @@ working_directory/
 
 ---
 
-## Configuration File Example (`micro_config_MAIPO.json`)
+## Configuration File Structure (based on `micro_config_MAIPO_AUTODEM.json`)
+
+This project reads a JSON configuration. The structure mirrors the example below (values here are examples; replace with your own as needed). Sensitive fields are shown as placeholders.
 
 ```json
 {
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet_self_calibrate",
-  "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet/Maipo_dem.tif",
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/MAIPO_Downscaled_micromet",
+  "dem_file": null,
+  "download_dem_extent": {
+    "lat_min": 6205000,
+    "lat_max": 6342500,
+    "lon_min": 366000,
+    "lon_max": 428500
+  },
+  "download_dem_epsg": 32719,
+  "download_dem_resolution": 50,
+  "output_filename_dem": "downloaded_dem.tif",
   "era_file": null,
-  "earthdatahub_pat": "your_token_here",
+  "earthdatahub_pat": "<provide_here>",
   "variables_to_downscale": {
     "t_air": "y",
     "sw_radiation": "y",
-    "relative_humidity": "y",
-    "precipitation": "y",
-    "wind": "y",
-    "lw_radiation": "y"
+    "relative_humidity": "n",
+    "precipitation": "n",
+    "wind": "n",
+    "lw_radiation": "n"
   },
-  "start_date": "2002-04-01",
-  "end_date": "2025-03-31",
+  "start_date": "2017-04-01",
+  "end_date": "2023-03-31",
   "aggregate_daily": "y",
-  "dem_nodata": null,
-  "auto_calibrate_lapse_rate": "y",
+  "dem_nodata": -32768,
+  "auto_calibrate_lapse_rate": "n",
   "custom_lapse_rates": {
     "temperature": {
-      "monthly": null
+      "monthly": [
+        8.1,
+        7.9,
+        7.78,
+        7.76,
+        7.9,
+        8,
+        8.2,
+        8.4,
+        8.6,
+        8.7,
+        8.4,
+        8.32
+      ]
     },
     "precipitation": {
       "monthly": null
@@ -102,10 +131,8 @@ working_directory/
   "jobs_parallel_downscale": -1,
   "jobs_parallel_download": -1
 }
-
 ```
 
-* Use `null` for default lapse rates (Liston and Elder, 2006)
 * You must register and obtain a PAT from [earthdatahub.destine.eu](https://earthdatahub.destine.eu/)
 
 ---
@@ -131,7 +158,25 @@ echo "Running MicroMet downscaling..."
 python "$SCRIPT_PATH" "$CONFIG_PATH"
 
 echo "Done DK."
+
 ```
+---
+
+
+
+## Example: Run downscaling on the Maipo area (via `run_micromet_MAIPO.sh`)
+
+A ready-to-use script is included to run the downscaling workflow for the Maipo domain:
+
+```bash
+# From the project root
+chmod +x run_micromet_MAIPO.sh
+./run_micromet_MAIPO.sh
+```
+
+This script launches the pipeline using the Maipo configuration (see `micro_config_MAIPO_AUTODEM.json`). Adjust paths or environment details inside the script if your setup differs.
+
+
 
 ## References
 
@@ -141,7 +186,6 @@ echo "Done DK."
 
 ## Acknowledgements
 
-mo li si aggiunge
 
 ---
 
@@ -151,8 +195,13 @@ mo li si aggiunge
 ---
 
 ## Contact
-o criatore
+
 
 ---
 
-Happy downscaling e ktm! 
+Happy downscaling!
+
+---
+
+
+

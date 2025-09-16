@@ -1,20 +1,17 @@
 #!/bin/bash
-
-# Exit if any command fails
 set -e
 
-# Activate conda environment
 echo "Activating conda environment 'microenv'..."
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate microenv
 
-# Path to your Python script and config
 SCRIPT_PATH="./main_micromet.py"
-CONFIG_PATH="./micro_config_SNOWCOP_DOMAIN.json"
+CONFIG_PATH="$1"   # <- prende il config passato da Python
 
-echo "Running MicroMet downscaling..."
+echo "Running MicroMet downscaling with config: $CONFIG_PATH"
 python "$SCRIPT_PATH" "$CONFIG_PATH"
 
 echo "Done DK."
+
 
 

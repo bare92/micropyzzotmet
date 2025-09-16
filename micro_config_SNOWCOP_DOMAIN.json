@@ -15,12 +15,12 @@
   "variables_to_downscale": {
     "t_air": "y",
     "sw_radiation": "y",
-    "relative_humidity": "n",
+    "relative_humidity": "y",
     "precipitation": "n",
     "wind": "n",
     "lw_radiation": "n"
   },
-  "start_date": "2023-03-01",
+  "start_date": "2013-04-01",
   "end_date": "2023-03-31",
   "aggregate_daily": "y",
   "dem_nodata": -9999,
@@ -33,7 +33,7 @@
       "monthly": null
     }
   },
-  "jobs_parallel_downscale": 2,
+  "jobs_parallel_downscale": -1,
   "jobs_parallel_download": -1
 }
 
