@@ -4,7 +4,7 @@
 set -e
 
 # Activate conda environment
-echo "Activating conda environment 'swe3'..."
+echo "Activating conda environment 'microenv'..."
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate swe3
 
