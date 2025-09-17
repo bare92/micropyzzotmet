@@ -29,14 +29,14 @@ from tempfile import TemporaryDirectory
 def parse_yes_no_flag(value, var_name=""):
     """
     Converts 'y'/'n' string flags to boolean.
-    
+
     Parameters:
         value (str): The input string, expected to be 'y' or 'n'.
         var_name (str): Optional variable name for clearer error messages.
-        
+
     Returns:
         bool: True if 'y', False if 'n'.
-        
+
     Raises:
         ValueError: If value is not 'y' or 'n'.
     """
@@ -67,6 +67,7 @@ def load_config(config_path):
         config = json.load(f)
     return config
 
+
 def load_dem(dem_path):
     with rasterio.open(dem_path) as src:
         dem_data = src.read(1)
@@ -75,9 +76,9 @@ def load_dem(dem_path):
     return dem_data, dem_meta, dem_transform
 
 
-
 def lon_to_360(lon):
     return lon % 360
+
 
 def check_extent_alignment(min_val, max_val, res):
     size = max_val - min_val
@@ -86,6 +87,7 @@ def check_extent_alignment(min_val, max_val, res):
         suggested_max = min_val + round(steps) * res
         return False, suggested_max
     return True, None
+
 
 def create_reference_grid(extent, resolution, crs):
     xmin, ymin, xmax, ymax = extent
@@ -108,6 +110,7 @@ def create_reference_grid(extent, resolution, crs):
     da.rio.write_transform(transform, inplace=True)
     da.rio.write_crs(crs, inplace=True)
     return da, width, height
+
 
 def download_and_save_dem_from_config(config):
     if config["dem_file"] is not None:
@@ -206,7 +209,6 @@ def download_and_save_dem_from_config(config):
     return output_path
 
 
-
 def load_era_data(era_path, variables, start_date=None, end_date=None):
     era_ds = xr.open_dataset(era_path)
 
@@ -218,7 +220,6 @@ def load_era_data(era_path, variables, start_date=None, end_date=None):
     return era_ds
 
 
-
 def compute_slope_aspect(dem_path, working_directory):
     output_dir = os.path.join(working_directory, 'inputs', 'dem')
     os.makedirs(output_dir, exist_ok=True)
@@ -228,7 +229,7 @@ def compute_slope_aspect(dem_path, working_directory):
     with rasterio.open(dem_path) as src:
         if src.crs.to_epsg() == 4326:
             # Reproject to UTM for slope/aspect computation
-            lon, lat = (src.bounds.left + src.bounds.right)/2, (src.bounds.top + src.bounds.bottom)/2
+            lon, lat = (src.bounds.left + src.bounds.right) / 2, (src.bounds.top + src.bounds.bottom) / 2
             zone = int((lon + 180) / 6) + 1
             utm_epsg = 32600 + zone if lat >= 0 else 32700 + zone
 
@@ -252,7 +253,7 @@ def compute_slope_aspect(dem_path, working_directory):
                         dst_crs=f'EPSG:{utm_epsg}',
                         resampling=Resampling.bilinear
                     )
-                
+
                 # Now run gdaldem on projected_path
                 tmp_slope = os.path.join(tmpdir, "slope_utm.tif")
                 tmp_aspect = os.path.join(tmpdir, "aspect_utm.tif")
@@ -288,6 +289,7 @@ def compute_slope_aspect(dem_path, working_directory):
 from tempfile import TemporaryDirectory
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 
+
 def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodata=None):
     output_dir = os.path.join(working_directory, 'inputs', 'dem')
     os.makedirs(output_dir, exist_ok=True)
@@ -301,7 +303,7 @@ def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodat
         dem_crs = src.crs
         if dem_crs.to_epsg() == 4326:
             # Project to UTM for curvature calculation
-            lon, lat = (src.bounds.left + src.bounds.right)/2, (src.bounds.top + src.bounds.bottom)/2
+            lon, lat = (src.bounds.left + src.bounds.right) / 2, (src.bounds.top + src.bounds.bottom) / 2
             zone = int((lon + 180) / 6) + 1
             utm_epsg = 32600 + zone if lat >= 0 else 32700 + zone
 
@@ -391,12 +393,12 @@ def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodat
 
 
 def write_downscaled_to_netcdf(
-    variables_dict,
-    time_list,
-    dem_shape,
-    dem_transform,
-    dem_crs,
-    out_nc
+        variables_dict,
+        time_list,
+        dem_shape,
+        dem_transform,
+        dem_crs,
+        out_nc
 ):
     """
     Save multiple downscaled variables to NetCDF with spatial referencing.
@@ -437,12 +439,27 @@ def write_downscaled_to_netcdf(
 
     print(f"\nSaved NetCDF: {out_nc}")
 
+
+def save_day_file(data_list, time_list, date, output_folder_T, dem, dem_transform, dem_crs, dict_nc):
+    """Save daily data with hourly timesteps to NetCDF."""
+    day_tag = pd.to_datetime(date).strftime("%Y_%m_%d")
+    out_nc = os.path.join(output_folder_T, f'{dict_nc["variable_name"]}_{day_tag}.nc')
+    write_downscaled_to_netcdf(
+        variables_dict={dict_nc["short_name"]: (data_list, dict_nc["unit"], dict_nc["variable_description"])},
+        time_list=time_list,
+        dem_shape=dem.shape,
+        dem_transform=dem_transform,
+        dem_crs=dem_crs,
+        out_nc=out_nc,
+    )
+
+
 def convert_micromet_to_s3m_inputs(
-    micromet_output_dir: str,
-    output_dir: str,
-    dem_path: str,
-    nodata_value: float = -9999.0,
-    n_jobs: int = 4
+        micromet_output_dir: str,
+        output_dir: str,
+        dem_path: str,
+        nodata_value: float = -9999.0,
+        n_jobs: int = 4
 ):
     os.makedirs(output_dir, exist_ok=True)
 
@@ -510,12 +527,12 @@ def convert_micromet_to_s3m_inputs(
         date_str = pd.to_datetime(t).strftime("%Y%m%d%H%M")
         filename_nc = os.path.join(output_dir, f"MeteoData_{date_str}.nc")
         filename_gz = filename_nc + ".gz"
-    
+
         if os.path.exists(filename_gz):
             return
-    
+
         data_vars = {}
-    
+
         # Interpolation is done using original y_coords
         for var_name in ["Rain", "AirTemperature", "IncRadiation", "RelHumidity"]:
             if var_name in var_data:
@@ -527,10 +544,10 @@ def convert_micromet_to_s3m_inputs(
                     data[data != nodata_value] = data[data != nodata_value] - 273.15
             else:
                 data = np.full((dst_height, dst_width), nodata_value, dtype=np.float32)
-    
+
             # Always flip vertically to match terrain
             data = data[::-1, :]
-    
+
             da = xr.DataArray(
                 data,
                 dims=("y", "x"),
@@ -538,7 +555,7 @@ def convert_micromet_to_s3m_inputs(
                 attrs={"coordinates": "longitude latitude"}
             )
             data_vars[var_name] = da
-    
+
         # Flip static fields
         data_vars["terrain"] = xr.DataArray(
             terrain[::-1, :],
@@ -557,12 +574,12 @@ def convert_micromet_to_s3m_inputs(
             coords={"x": x_coords, "y": y_coords[::-1]},
             attrs={"_FillValue": nodata_value}
         )
-    
+
         # Build dataset
         ds_out = xr.Dataset(data_vars)
         ds_out = ds_out.rio.write_transform(dst_transform)
         ds_out = ds_out.rio.write_crs(dst_crs)
-    
+
         ds_out.attrs.update({
             "ncols": dst_width,
             "nrows": dst_height,
@@ -571,14 +588,12 @@ def convert_micromet_to_s3m_inputs(
             "yllcorner": float(dst_transform.f + dst_height * dst_transform.e),
             "cellsize": float(dst_transform.a)
         })
-    
+
         ds_out.to_netcdf(filename_nc)
-    
+
         with open(filename_nc, 'rb') as f_in, gzip.open(filename_gz, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)
         os.remove(filename_nc)
-
-
 
     # --- Run in parallel ---
     Parallel(n_jobs=n_jobs)(

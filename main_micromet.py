@@ -18,8 +18,10 @@ from downscaling_variables import *
 import time
 from joblib import Parallel, delayed
 
+
 # Temperature
-def run_temperature(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+def run_temperature(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                    calibrate_lapse_rate, dem_nodata):
     output_folder = os.path.join(working_directory, 'outputs', 'Temperature')
     downscale_Temperature(
         dem_path, curr_climate_file, output_folder,
@@ -27,6 +29,7 @@ def run_temperature(curr_climate_file, dem_path, working_directory, variables_to
         calibrate_lapse_rate=calibrate_lapse_rate,
         dem_nodata=dem_nodata
     )
+
 
 # Shortwave Radiation
 # def run_shortwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
@@ -38,14 +41,17 @@ def run_temperature(curr_climate_file, dem_path, working_directory, variables_to
 #         calibrate_lapse_rate=calibrate_lapse_rate,
 #         dem_nodata=dem_nodata
 #     )
-    
+
 # Shortwave Radiation custom that uses era5 input ssrd
-def run_shortwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+def run_shortwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                  calibrate_lapse_rate, dem_nodata):
     output_folder = os.path.join(working_directory, 'outputs', 'SW')
     downscale_SW_custom(dem_path, curr_climate_file, output_folder, dem_nodata=dem_nodata)
-    
+
+
 # Relative Humidity
-def run_relative_humidity(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+def run_relative_humidity(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                          calibrate_lapse_rate, dem_nodata):
     output_folder = os.path.join(working_directory, 'outputs', 'RH')
     downscale_RH(
         dem_path, curr_climate_file, output_folder,
@@ -54,14 +60,17 @@ def run_relative_humidity(curr_climate_file, dem_path, working_directory, variab
         dem_nodata=dem_nodata
     )
 
+
 # Precipitation
-def run_precipitation(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata):
+def run_precipitation(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                      dem_nodata):
     output_folder = os.path.join(working_directory, 'outputs', 'P')
     downscale_Precipitation(
         dem_path, curr_climate_file, output_folder,
         custom_gamma=custom_lapse_rates.get("precipitation", {}).get("monthly"),
         dem_nodata=dem_nodata
     )
+
 
 # Wind
 def run_wind(curr_climate_file, dem_path, working_directory, variables_to_downscale, dem_nodata):
@@ -72,8 +81,10 @@ def run_wind(curr_climate_file, dem_path, working_directory, variables_to_downsc
         dem_nodata=dem_nodata
     )
 
+
 # Longwave Radiation
-def run_longwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+def run_longwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                 calibrate_lapse_rate, dem_nodata):
     output_folder = os.path.join(working_directory, 'outputs', 'LW')
     downscale_LW(
         dem_path, curr_climate_file, output_folder,
@@ -85,24 +96,22 @@ def run_longwave(curr_climate_file, dem_path, working_directory, variables_to_do
 
 
 def run_micropezzomet(config_path):
-    
     dem_nodata = None
-    
+
     config = load_config(config_path)
     dem_nodata = config.get("dem_nodata", None)
 
     working_directory = config["working_directory"]
-    
+
     create_full_micromet_folder_structure(base_path=working_directory)
-    
+
     start_date = config["start_date"]
     end_date = config["end_date"]
-    
+
     dem_path = config["dem_file"]
     if dem_path == None:
         dem_path = download_and_save_dem_from_config(config)
-        
-    
+
     era_path = config["era_file"]
     pat_token = config["earthdatahub_pat"]
     aggregate_daily = config["aggregate_daily"]
@@ -110,7 +119,7 @@ def run_micropezzomet(config_path):
     jobs_download = config["jobs_parallel_download"]
     dem_nodata = config.get("dem_nodata", None)
     calibrate_lapse_rate = parse_yes_no_flag(config["auto_calibrate_lapse_rate"], "n")
-    
+
     if era_path is None:
         print("Downloading ERA5-Land data...")
         aggregate_daily = parse_yes_no_flag(aggregate_daily, "n")
@@ -126,35 +135,39 @@ def run_micropezzomet(config_path):
         )
 
     compute_slope_aspect(dem_path, working_directory)
-    
+
     compute_topographic_curvature(dem_path, working_directory)
 
     climate_files = sorted(glob.glob(os.path.join(working_directory, 'inputs/climate', '*.nc')))
     variables_to_downscale = config["variables_to_downscale"]
     custom_lapse_rates = config.get("custom_lapse_rates", {})
-    
+
     # Air Temperature
     if parse_yes_no_flag(variables_to_downscale.get("t_air", "n"), "t_air"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_temperature)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+            delayed(run_temperature)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                                     calibrate_lapse_rate, dem_nodata) for f in climate_files
         )
 
     # Shortwave Radiation
     if parse_yes_no_flag(variables_to_downscale.get("sw_radiation", "n"), "sw_radiation"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_shortwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+            delayed(run_shortwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                                   calibrate_lapse_rate, dem_nodata) for f in climate_files
         )
 
     # Relative Humidity
     if parse_yes_no_flag(variables_to_downscale.get("relative_humidity", "n"), "relative_humidity"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_relative_humidity)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+            delayed(run_relative_humidity)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                                           calibrate_lapse_rate, dem_nodata) for f in climate_files
         )
 
     # Precipitation
     if parse_yes_no_flag(variables_to_downscale.get("precipitation", "n"), "precipitation"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_precipitation)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata) for f in climate_files
+            delayed(run_precipitation)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                                       dem_nodata) for f in climate_files
         )
 
     # Wind
@@ -166,9 +179,10 @@ def run_micropezzomet(config_path):
     # Longwave Radiation
     if parse_yes_no_flag(variables_to_downscale.get("lw_radiation", "n"), "lw_radiation"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+            delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates,
+                                  calibrate_lapse_rate, dem_nodata) for f in climate_files
         )
-        
+
     # Optionally generate S3M-compatible inputs
     generate_s3m = parse_yes_no_flag(config.get("generate_s3m_input", "n"), "generate_s3m_input")
     if generate_s3m:
@@ -178,7 +192,7 @@ def run_micropezzomet(config_path):
             output_dir=os.path.join(working_directory, "outputs", "s3m"),
             dem_path=dem_path,
             nodata_value=dem_nodata if dem_nodata is not None else -9999,
-            n_jobs= -1 #  -1 for all available cores
+            n_jobs=-1  # -1 for all available cores
         )
 
 
@@ -197,7 +211,7 @@ if __name__ == "__main__":
         elapsed_sec = int(elapsed % 60)
 
         config = load_config(config_path)
-    
+
         print("\nMicroPezzottoMet run completed.")
         print(f"Time range: {config['start_date']} to {config['end_date']}")
         print(f"Execution time: {elapsed_min} minutes and {elapsed_sec} seconds")

@@ -7,7 +7,7 @@ Created on Wed Jun 18 15:59:40 2025
 """
 
 # get_era5_zarr.py
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 18 15:59:40 2025
@@ -25,6 +25,7 @@ import rasterio
 from rasterio.warp import transform_bounds
 from joblib import Parallel, delayed
 
+
 def is_valid_netcdf(file_path):
     try:
         xr.open_dataset(file_path).close()
@@ -32,8 +33,10 @@ def is_valid_netcdf(file_path):
     except:
         return False
 
+
 def lon_to_360(lon):
     return lon if lon >= 0 else lon + 360
+
 
 def get_tiff_extent_latlon(tiff_path, buffer=0.4):
     with rasterio.open(tiff_path) as src:
@@ -45,6 +48,7 @@ def get_tiff_extent_latlon(tiff_path, buffer=0.4):
         else:
             lon_min, lat_min, lon_max, lat_max = bounds.left, bounds.bottom, bounds.right, bounds.top
     return lat_min - buffer, lat_max + buffer, lon_min - buffer, lon_max + buffer
+
 
 def aggregate_to_daily(ds):
     mean_vars = ['t2m', 'd2m', 'u10', 'v10', 'sp', 'strd', 'ssrd']
@@ -63,6 +67,7 @@ def aggregate_to_daily(ds):
             agg_dict[var] = ds[var].resample(valid_time="1D").mean()
 
     return xr.Dataset(agg_dict)
+
 
 def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
     end = (start + pd.offsets.MonthEnd(0)) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
@@ -138,10 +143,7 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
     ds_surface.to_netcdf(surface_file)
 
 
-
-
-
-def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, jobs_download = 1, aggregate_daily = False):
+def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, jobs_download=1, aggregate_daily=False):
     os.makedirs(output_dir, exist_ok=True)
     lat_min, lat_max, lon_min, lon_max = get_tiff_extent_latlon(refrence_area_path)
     lat_slice = slice(lat_max, lat_min)
@@ -155,11 +157,10 @@ def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, jobs_dow
     ds = ds.sel(valid_time=slice(start_date, end_date))
 
     time_ranges = pd.date_range(start=start_date, end=end_date, freq='MS')
-    
-        
+
     Parallel(n_jobs=-1)(
-        delayed(process_month)(ds, start, output_dir, variables, aggregate_daily=aggregate_daily) for start in time_ranges
+        delayed(process_month)(ds, start, output_dir, variables, aggregate_daily=aggregate_daily) for start in
+        time_ranges
     )
-    
 
     print("ERA5 download complete.")

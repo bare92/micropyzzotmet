@@ -1,0 +1,38 @@
+{
+  "working_directory": "/mnt/CEPH_PROJECTS/ALPSNOW/Katharina/micromet/AZUFRE_example",
+  "dem_file": null,
+  "download_dem_extent": {
+    "lat_min": 6080000,
+    "lat_max": 6114000,
+    "lon_min": 344000,
+    "lon_max": 369000
+  },
+  "download_dem_epsg": 32719,  
+  "download_dem_resolution": 50,  
+  "output_filename_dem": "extratropical_andes_damain_DEM.tif",
+  "era_file": null,
+  "earthdatahub_pat": "edh_pat_fc0fbdc8bdc5afc7bf37e42bd7392da034c41d6020192a4d3c38876f879fa2cd9c960d5fda4e8bc384e70af28f4178b0",
+  "variables_to_downscale": {
+    "t_air": "n",
+    "sw_radiation": "n",
+    "relative_humidity": "n",
+    "precipitation": "n",
+    "wind": "y",
+    "lw_radiation": "n"
+  },
+  "start_date": "2022-04-01",
+  "end_date": "2022-05-31",
+  "aggregate_daily": "n",
+  "dem_nodata": -32768,
+  "auto_calibrate_lapse_rate": "n",
+  "custom_lapse_rates": {
+    "temperature": {
+      "monthly": [8.1, 7.9, 7.78, 7.76, 7.9, 8, 8.2, 8.4, 8.6, 8.7, 8.4, 8.32]
+    },
+    "precipitation": {
+      "monthly": null
+    }
+  },
+  "jobs_parallel_downscale": -1,
+  "jobs_parallel_download": -1
+}

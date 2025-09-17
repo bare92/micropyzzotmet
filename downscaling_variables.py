@@ -19,16 +19,15 @@ import pandas as pd
 from rasterio.warp import reproject, Resampling
 import matplotlib.pyplot as plt
 from affine import Affine
-from utils import write_downscaled_to_netcdf
+from utils import write_downscaled_to_netcdf, save_day_file
 from scipy.stats import linregress
 from scipy import interpolate as spint
 import copy
 import pvlib
 
-    
-def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
-   
 
+def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_lapse_rate=None,
+                          calibrate_lapse_rate=False, dem_nodata=None):
     geopotential_path = './auxiliary_data/geopotential3.nc'
 
     lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
@@ -60,6 +59,14 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
     elif not calibrate_lapse_rate:
         lapse_rate_all = lapse_rate_sohem if center_lat < 0 else lapse_rate_nohem
 
+    delta_hour = (time[1] - time[0]).astype('timedelta64[h]').astype(int)
+    if delta_hour == 24:
+        time_stepping = 'daily'
+    elif delta_hour == 1:
+        time_stepping = 'hourly'
+    else:
+        print(f"Time stepping is {delta_hour} hours - not supported.")
+
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
     out_nc = os.path.join(output_folder_T, f"temperature_downscaled_{month_tag}.nc")
     if os.path.exists(out_nc):
@@ -88,7 +95,6 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
 
     for i, timestep in enumerate(tqdm(time, desc="Downscaling temperature")):
         date = pd.to_datetime(str(timestep))
-
         temp_raw = temp.isel(valid_time=i).values if "valid_time" in temp.dims else temp.isel(time=i).values
         month_index = date.month - 1
 
@@ -104,6 +110,7 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
         else:
             lapse_rate = lapse_rate_all[month_index]
 
+        # Eq. (2) in Liston and Elder (2006)
         t_0 = temp_raw - lapse_rate * (0 - z0)
 
         t0_resampled = np.empty_like(dem, dtype=np.float32)
@@ -117,25 +124,69 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
             resampling=Resampling.bilinear
         )
 
+        # Eq. (3) in Liston and Elder (2006)
         temperature_downscaled = t0_resampled - lapse_rate * (dem - 0)
         temperature_downscaled[dem_mask] = np.nan
 
-        data_list.append(temperature_downscaled[np.newaxis, ...])
-        time_list.append(date)
+        if time_stepping == 'hourly':
+            if i == 0:
+                data_list.append(temperature_downscaled[np.newaxis, ...])
+                time_list.append(date)
+            else:
+                previous_date = pd.to_datetime(str(time[i - 1]))
 
-    write_downscaled_to_netcdf(
-        variables_dict={
-            "t2m": (data_list, "degC", "Downscaled air temperature")
-        },
-        time_list=time_list,
-        dem_shape=dem.shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
+                data_list.append(temperature_downscaled[np.newaxis, ...])
+                time_list.append(date)
 
-    print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
+                # case 1: new day started: save previous day
+                if date.day != previous_date.day:
+                    save_day_file(data_list=data_list[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_T,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "temperature_downscaled",
+                                           "short_name": "t2m",
+                                           "unit": "degC",
+                                           "variable_description": "Downscaled air temperature"}
+                                  )
+                    data_list = [data_list[-1]]
+                    time_list = [time_list[-1]]
 
+                # case 2: last timestep: save current day
+                if timestep == time[-1]:
+                    save_day_file(data_list=data_list[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_T,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "temperature_downscaled",
+                                           "short_name": "t2m",
+                                           "unit": "degC",
+                                           "variable_description": "Downscaled air temperature"}
+                                  )
+
+        else:
+            data_list.append(temperature_downscaled[np.newaxis, ...])
+            time_list.append(date)
+
+    if time_stepping == 'daily':
+        write_downscaled_to_netcdf(
+            variables_dict={
+                "t2m": (data_list, "degC", "Downscaled air temperature")
+            },
+            time_list=time_list,
+            dem_shape=dem.shape,
+            dem_transform=dem_transform,
+            dem_crs=dem_crs,
+            out_nc=out_nc
+        )
+
+    print(f"\nDownscaling complete.")
 
 
 def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1370.0,
@@ -159,8 +210,8 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
     os.makedirs(output_folder_SW, exist_ok=True)
 
     with rasterio.open(dem_path) as dem_src, \
-         rasterio.open(slope_path) as slope_src, \
-         rasterio.open(aspect_path) as aspect_src:
+            rasterio.open(slope_path) as slope_src, \
+            rasterio.open(aspect_path) as aspect_src:
 
         dem = dem_src.read(1)
         dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
@@ -220,10 +271,12 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
         month_index = date.month - 1
 
         if calibrate_lapse_rate:
-            T_vals = temp.isel(valid_time=i).values.flatten() if "valid_time" in temp.dims else temp.isel(time=i).values.flatten()
+            T_vals = temp.isel(valid_time=i).values.flatten() if "valid_time" in temp.dims else temp.isel(
+                time=i).values.flatten()
             Z_vals = z0.flatten()
             valid = ~np.isnan(T_vals) & ~np.isnan(Z_vals)
-            lapse_rate = -linregress(Z_vals[valid], T_vals[valid]).slope if np.sum(valid) >= 5 else lapse_rate_all[month_index]
+            lapse_rate = -linregress(Z_vals[valid], T_vals[valid]).slope if np.sum(valid) >= 5 else lapse_rate_all[
+                month_index]
         else:
             lapse_rate = lapse_rate_all[month_index]
 
@@ -253,7 +306,8 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
             hours = np.linspace(0.5, 23.5, 24)
             omega = np.pi * (hours - 12) / 12
             delta = -23.44 * np.pi / 180 * np.cos(2 * np.pi * (date.dayofyear + 10) / 365)
-            cosZ = np.clip(np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega), 0, 1)
+            cosZ = np.clip(np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega),
+                           0, 1)
             phi = np.arcsin(np.clip(np.cos(delta) * np.sin(omega) / np.maximum(np.sin(np.arccos(cosZ)), 1e-6), -1, 1))
             cosZ_exp = cosZ[:, None, None]
             phi_exp = phi[:, None, None]
@@ -275,7 +329,6 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
 
         time_list.append(date)
 
-    
     write_downscaled_to_netcdf(
         variables_dict={"SW": (Qsi_all, "W m-2", "Downscaled incoming shortwave radiation")},
         time_list=time_list,
@@ -287,7 +340,6 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
 
 
 def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodata=None):
-
     import numpy as np
     import xarray as xr
     import os
@@ -296,7 +348,6 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
     from rasterio.warp import reproject, Resampling
     from rasterio.transform import from_origin
     from glob import glob as glob_glob
-    
 
     # Get slope and aspect maps
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
@@ -305,8 +356,8 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
     os.makedirs(output_folder_SW, exist_ok=True)
 
     with rasterio.open(dem_path) as dem_src, \
-         rasterio.open(slope_path) as slope_src, \
-         rasterio.open(aspect_path) as aspect_src:
+            rasterio.open(slope_path) as slope_src, \
+            rasterio.open(aspect_path) as aspect_src:
 
         dem = dem_src.read(1)
         dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
@@ -330,13 +381,12 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
     lat_mean_rad = np.radians(center_lat)
     center_lon = (lon[0] + lon[-1]) / 2
     lon_mean_rad = np.radians(center_lon)
-    
-    latitude = np.degrees(lat_mean_rad)        # from your domain center
-    longitude = np.degrees(lon_mean_rad)        # from your domain center
-    
+
+    latitude = np.degrees(lat_mean_rad)  # from your domain center
+    longitude = np.degrees(lon_mean_rad)  # from your domain center
+
     # Step 1: Create a location object
     location = pvlib.location.Location(latitude, longitude)
-
 
     dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
     era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
@@ -359,23 +409,22 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
                   src_transform=era_transform, src_crs=era_crs,
                   dst_transform=dem_transform, dst_crs=dem_crs,
                   resampling=Resampling.bilinear)
-        
 
         if is_daily_data:
             # Estimate UTC time of solar noon based on longitude
             solar_noon_utc = date.normalize() + pd.Timedelta(hours=12 - location.longitude / 15)
-        
+
             # Ensure timezone-aware datetime (UTC)
             solar_noon_utc = solar_noon_utc.tz_localize("UTC")
-        
+
             # Get solar position at estimated solar noon
             solpos = location.get_solarposition(solar_noon_utc)
-        
+
             # Extract solar angles
-            zenith = np.radians(solpos['zenith'].values[0])   # radians
-            azimuth = np.radians(solpos['azimuth'].values[0]) # radians
+            zenith = np.radians(solpos['zenith'].values[0])  # radians
+            azimuth = np.radians(solpos['azimuth'].values[0])  # radians
             cosZ = np.cos(zenith)
-        
+
             # Compute incidence angle on slope
             incidence = pvlib.irradiance.aoi(
                 surface_tilt=np.degrees(slope_rad),
@@ -383,27 +432,27 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
                 solar_zenith=solpos['zenith'].values[0],
                 solar_azimuth=solpos['azimuth'].values[0]
             )
-        
+
             cos_i = np.clip(np.cos(np.radians(incidence)), 0, 1)
-        
+
             # Topographic correction
             Qsi_daily = ssrd_resampled * (cos_i / (cosZ + 1e-6))
             Qsi_daily[dem_mask] = np.nan
             Qsi_all.append(Qsi_daily[np.newaxis, ...])
             time_list.append(date)
-    
+
         else:
             # Hourly case — one file per hour
             date_i = pd.to_datetime(date).tz_localize("UTC")  # ensure timezone-aware
-        
+
             # Get solar position at the hourly time
             solpos = location.get_solarposition(date_i)
-        
+
             # Extract solar angles
-            zenith = np.radians(solpos['zenith'].values[0])   # radians
-            azimuth = np.radians(solpos['azimuth'].values[0]) # radians
-            cosZ = np.cos(zenith)                             # cos(zenith)
-        
+            zenith = np.radians(solpos['zenith'].values[0])  # radians
+            azimuth = np.radians(solpos['azimuth'].values[0])  # radians
+            cosZ = np.cos(zenith)  # cos(zenith)
+
             # Compute incidence angle on slope
             incidence = pvlib.irradiance.aoi(
                 surface_tilt=np.degrees(slope_rad),
@@ -411,16 +460,16 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
                 solar_zenith=solpos['zenith'].values[0],
                 solar_azimuth=solpos['azimuth'].values[0]
             )
-        
+
             cos_i = np.clip(np.cos(np.radians(incidence)), 0, 1)
-        
+
             # Apply topographic correction
             Qsi_hourly = ssrd_resampled * (cos_i / (cosZ + 1e-6))
             Qsi_hourly[dem_mask] = np.nan
-        
+
             Qsi_all.append(Qsi_hourly[np.newaxis, ...])
             time_list.append(date_i)
-            
+
     write_downscaled_to_netcdf(
         variables_dict={"SW": (Qsi_all, "W m-2", "Topographically corrected shortwave radiation")},
         time_list=time_list,
@@ -431,7 +480,8 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
     )
 
 
-def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
+def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rate=None, calibrate_lapse_rate=False,
+                 dem_nodata=None):
     a, b, c = 611.21, 17.502, 240.97
     geopotential_path = './auxiliary_data/geopotential3.nc'
     os.makedirs(output_folder_RH, exist_ok=True)
@@ -455,6 +505,14 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
     lon, lat = ds.longitude.values, ds.latitude.values
     lon2d, lat2d = np.meshgrid(lon, lat)
+
+    delta_hour = (time[1] - time[0]).astype('timedelta64[h]').astype(int)
+    if delta_hour == 24:
+        time_stepping = 'daily'
+    elif delta_hour == 1:
+        time_stepping = 'hourly'
+    else:
+        print(f"Time stepping is {delta_hour} hours - not supported.")
 
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
     out_nc = os.path.join(output_folder_RH, f"relative_humidity_{month_tag}.nc")
@@ -497,7 +555,8 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
 
         # Dynamic lapse rate estimation
         if calibrate_lapse_rate:
-            T_vals = temp.isel(valid_time=i).values.flatten() if "valid_time" in temp.dims else temp.isel(time=i).values.flatten()
+            T_vals = temp.isel(valid_time=i).values.flatten() if "valid_time" in temp.dims else temp.isel(
+                time=i).values.flatten()
             Z_vals = z0.flatten()
             valid = ~np.isnan(T_vals) & ~np.isnan(Z_vals)
             if np.sum(valid) < 5:
@@ -534,24 +593,68 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
         RH = np.clip(100 * e / es, 0, 100)
         RH[dem_mask] = np.nan
 
-        RH_all.append(RH[np.newaxis, ...])
-        time_list.append(date)
+        if time_stepping == 'hourly':
+            if i == 0:
+                RH_all.append(RH[np.newaxis, ...])
+                time_list.append(date)
+            else:
+                previous_date = pd.to_datetime(str(time[i - 1]))
 
-    write_downscaled_to_netcdf(
-        variables_dict={
-            "RH": (RH_all, "%", "Downscaled relative humidity")
-        },
-        time_list=time_list,
-        dem_shape=dem.shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
+                RH_all.append(RH[np.newaxis, ...])
+                time_list.append(date)
+
+                # case 1: new day started: save previous day
+                if date.day != previous_date.day:
+                    save_day_file(data_list=RH_all[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_RH,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "relative_humidity",
+                                           "short_name": "RH",
+                                           "unit": "%",
+                                           "variable_description": "Downscaled relative humidity"}
+                                  )
+                    RH_all = [RH_all[-1]]
+                    time_list = [time_list[-1]]
+
+                # case 2: last timestep: save current day
+                if timestep == time[-1]:
+                    save_day_file(data_list=RH_all[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_RH,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "relative_humidity",
+                                           "short_name": "RH",
+                                           "unit": "%",
+                                           "variable_description": "Downscaled relative humidity"}
+                                  )
+
+        else:
+            RH_all.append(RH[np.newaxis, ...])
+            time_list.append(date)
+
+    if time_stepping == 'daily':
+        write_downscaled_to_netcdf(
+            variables_dict={
+                "RH": (RH_all, "%", "Downscaled relative humidity")
+            },
+            time_list=time_list,
+            dem_shape=dem.shape,
+            dem_transform=dem_transform,
+            dem_crs=dem_crs,
+            out_nc=out_nc
+        )
+
+    print(f"\nDownscaling complete.")
 
 
 def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom_gamma=None, dem_nodata=None):
-    
-
     geopotential_path = './auxiliary_data/geopotential3.nc'
     os.makedirs(output_folder_P, exist_ok=True)
 
@@ -573,10 +676,18 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
     lon, lat = ds.longitude.values, ds.latitude.values
     lon2d, lat2d = np.meshgrid(lon, lat)
-    
+
+    delta_hour = (time[1] - time[0]).astype('timedelta64[h]').astype(int)
+    if delta_hour == 24:
+        time_stepping = 'daily'
+    elif delta_hour == 1:
+        time_stepping = 'hourly'
+    else:
+        print(f"Time stepping is {delta_hour} hours - not supported.")
+
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
     out_nc = os.path.join(output_folder_P, f"precipitation_{month_tag}.nc")
-    
+
     if os.path.exists(out_nc):
         print(f"Output already exists: {out_nc}. Skipping downscaling.")
         return
@@ -625,25 +736,69 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
         precip_downscaled = p0_resampled * ((1 + gamma * dz) / (1 + np.abs(gamma * dz)))
 
         precip_downscaled[dem_mask] = np.nan
-        precip_all.append(precip_downscaled[np.newaxis, ...])
-        time_list.append(date)
 
+        if time_stepping == 'hourly':
+            if i == 0:
+                precip_all.append(precip_downscaled[np.newaxis, ...])
+                time_list.append(date)
+            else:
+                previous_date = pd.to_datetime(str(time[i - 1]))
 
+                precip_all.append(precip_downscaled[np.newaxis, ...])
+                time_list.append(date)
 
-    write_downscaled_to_netcdf(
-        variables_dict={
-            "P": (precip_all, "mm", "Downscaled precipitation")
-        },
-        time_list=time_list,
-        dem_shape=dem.shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
+                # case 1: new day started: save previous day
+                if date.day != previous_date.day:
+                    save_day_file(data_list=precip_all[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_P,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "precipitation",
+                                           "short_name": "P",
+                                           "unit": "mm",
+                                           "variable_description": "Downscaled precipitation"}
+                                  )
+                    precip_all = [precip_all[-1]]
+                    time_list = [time_list[-1]]
+
+                # case 2: last timestep: save current day
+                if timestep == time[-1]:
+                    save_day_file(data_list=precip_all[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_P,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "precipitation",
+                                           "short_name": "P",
+                                           "unit": "mm",
+                                           "variable_description": "Downscaled precipitation"}
+                                  )
+
+        else:
+            precip_all.append(precip_downscaled[np.newaxis, ...])
+            time_list.append(date)
+
+    if time_stepping == 'daily':
+        write_downscaled_to_netcdf(
+            variables_dict={
+                "P": (precip_all, "mm", "Downscaled precipitation")
+            },
+            time_list=time_list,
+            dem_shape=dem.shape,
+            dem_transform=dem_transform,
+            dem_crs=dem_crs,
+            out_nc=out_nc
+        )
+
+    print(f"\nDownscaling complete.")
 
 
 def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.5, dem_nodata=None):
-
     os.makedirs(output_folder_W, exist_ok=True)
     working_directory = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
     curvature_path = glob.glob(os.path.join(working_directory, 'inputs', 'dem', '*curvature*.tif'))[0]
@@ -671,10 +826,23 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
     u10 = ds["u10"]
     v10 = ds["v10"]
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
+
+    delta_hour = (time[1] - time[0]).astype('timedelta64[h]').astype(int)
+    if delta_hour == 24:
+        time_stepping = 'daily'
+    elif delta_hour == 1:
+        time_stepping = 'hourly'
+    else:
+        print(f"Time stepping is {delta_hour} hours - not supported.")
+
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_W, f"wind_speed_direction_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+    out_nc_wind_speed = os.path.join(output_folder_W, f"wind_speed_{month_tag}.nc")
+    out_nc_wind_dir = os.path.join(output_folder_W, f"wind_direction_{month_tag}.nc")
+    if os.path.exists(out_nc_wind_speed):
+        print(f"Output already exists: {out_nc_wind_speed}. Skipping downscaling.")
+        return
+    if os.path.exists(out_nc_wind_dir):
+        print(f"Output already exists: {out_nc_wind_dir}. Skipping downscaling.")
         return
 
     lon = ds.longitude.values
@@ -700,7 +868,6 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
         date = pd.to_datetime(str(timestep))
         u_raw = u10.isel(valid_time=i).values if "valid_time" in u10.dims else u10.isel(time=i).values
         v_raw = v10.isel(valid_time=i).values if "valid_time" in v10.dims else v10.isel(time=i).values
-        
 
         wind_u_resampled = np.empty_like(dem, dtype=np.float32)
         wind_v_resampled = np.empty_like(dem, dtype=np.float32)
@@ -714,12 +881,13 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
                   dst_transform=dem_transform, dst_crs=dem_crs,
                   resampling=Resampling.bilinear)
 
-        wind_speed = np.sqrt(wind_u_resampled**2 + wind_v_resampled**2)
+        wind_speed = np.sqrt(wind_u_resampled ** 2 + wind_v_resampled ** 2)
         wind_direction = 3 * np.pi / 2 - np.arctan2(wind_v_resampled, wind_u_resampled)
 
         slope_wind_direction = slope * np.cos(wind_direction - aspect)
         range_slope = np.nanmax(slope_wind_direction) - np.nanmin(slope_wind_direction)
-        slope_norm = (slope_wind_direction - np.nanmin(slope_wind_direction)) / range_slope if range_slope > 0 else np.zeros_like(slope_wind_direction) - 0.5
+        slope_norm = (slope_wind_direction - np.nanmin(
+            slope_wind_direction)) / range_slope if range_slope > 0 else np.zeros_like(slope_wind_direction) - 0.5
 
         range_curv = np.nanmax(curvature) - np.nanmin(curvature)
         curvature_norm = (curvature - np.nanmin(curvature)) / range_curv if range_curv > 0 else np.zeros_like(curvature)
@@ -733,36 +901,122 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
 
         wind_weighting_factor = 1 + slope_final + curv_final
         wind_speed_adjusted = wind_speed * wind_weighting_factor
-        
+
         div_factor = -0.5 * slope_norm * np.sin(2 * (wind_direction - aspect))
-        
+
         wind_direction_modified = wind_direction + div_factor
-        
+
         wind_direction_deg = np.degrees(wind_direction)
 
         wind_speed_adjusted[dem_mask] = np.nan
         wind_direction_deg[dem_mask] = np.nan
 
-        wind_speed_all.append(wind_speed_adjusted[np.newaxis, ...])
-        wind_dir_all.append(wind_direction_deg[np.newaxis, ...])
-        time_list.append(date)
+        if time_stepping == 'hourly':
+            if i == 0:
+                wind_speed_all.append(wind_speed_adjusted[np.newaxis, ...])
+                wind_dir_all.append(wind_direction_deg[np.newaxis, ...])
+                time_list.append(date)
+            else:
+                previous_date = pd.to_datetime(str(time[i - 1]))
 
-    write_downscaled_to_netcdf(
-        variables_dict={
-            "wind_speed": (wind_speed_all, "m s-1", "Downscaled wind speed"),
-            "wind_direction": (wind_dir_all, "degrees from north", "Downscaled wind direction")
-        },
-        time_list=time_list,
-        dem_shape=dem.shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
+                wind_speed_all.append(wind_speed_adjusted[np.newaxis, ...])
+                wind_dir_all.append(wind_direction_deg[np.newaxis, ...])
+                time_list.append(date)
 
-    print(f"\nWind downscaling complete. NetCDF saved in: {out_nc}")
-    
-    
-def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
+                # case 1: new day started: save previous day
+                if date.day != previous_date.day:
+                    save_day_file(data_list=wind_speed_all[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_W,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "wind_speed",
+                                           "short_name": "wind_speed",
+                                           "unit": "m s-1",
+                                           "variable_description": "Downscaled wind speed"}
+                                  )
+
+                    save_day_file(data_list=wind_dir_all[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_W,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "wind_direction",
+                                           "short_name": "wind_dir",
+                                           "unit": "degrees from north",
+                                           "variable_description": "Downscaled wind direction"}
+                                  )
+
+                    wind_speed_all = [wind_speed_all[-1]]
+                    wind_dir_all = [wind_dir_all[-1]]
+                    time_list = [time_list[-1]]
+
+                # case 2: last timestep: save current day
+                if timestep == time[-1]:
+                    save_day_file(data_list=wind_speed_all[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_W,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "wind_speed",
+                                           "short_name": "wind_speed",
+                                           "unit": "m s-1",
+                                           "variable_description": "Downscaled wind speed"}
+                                  )
+
+                    save_day_file(data_list=wind_dir_all[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_W,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "wind_direction",
+                                           "short_name": "wind_dir",
+                                           "unit": "degrees from north",
+                                           "variable_description": "Downscaled wind direction"}
+                                  )
+
+        else:
+            wind_speed_all.append(wind_speed_adjusted[np.newaxis, ...])
+            wind_dir_all.append(wind_direction_deg[np.newaxis, ...])
+            time_list.append(date)
+
+    if time_stepping == 'daily':
+        write_downscaled_to_netcdf(
+            variables_dict={
+                "wind_speed": (wind_speed_all, "m s-1", "Downscaled wind speed")
+            },
+            time_list=time_list,
+            dem_shape=dem.shape,
+            dem_transform=dem_transform,
+            dem_crs=dem_crs,
+            out_nc=out_nc_wind_speed
+        )
+
+        write_downscaled_to_netcdf(
+            variables_dict={
+                "wind_dir": (wind_speed_all, "m s-1", "Downscaled wind direction")
+            },
+            time_list=time_list,
+            dem_shape=dem.shape,
+            dem_transform=dem_transform,
+            dem_crs=dem_crs,
+            out_nc=out_nc_wind_dir
+        )
+
+    print(f"\nWind downscaling complete. NetCDF saved in: {out_nc_wind_speed}")
+    print(f"\nWind downscaling complete. NetCDF saved in: {out_nc_wind_dir}")
+
+
+def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, custom_lapse_rate=None,
+                 calibrate_lapse_rate=False, dem_nodata=None):
     import numpy as np
     import os
     import rasterio
@@ -777,7 +1031,7 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
     from utils import write_downscaled_to_netcdf  # Make sure this function is available in utils
 
     geopotential_path = './auxiliary_data/geopotential3.nc'
-    
+
     lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
     lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
     vp_coeff_nohem = np.array([0.41, 0.42, 0.40, 0.39, 0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40]) / 1000.0
@@ -810,6 +1064,14 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
     elif not calibrate_lapse_rate:
         lapse_rate_all = lapse_rate_sohem if center_lat < 0 else lapse_rate_nohem
     vp_coeff_all = vp_coeff_sohem if center_lat < 0 else vp_coeff_nohem
+
+    delta_hour = (time[1] - time[0]).astype('timedelta64[h]').astype(int)
+    if delta_hour == 24:
+        time_stepping = 'daily'
+    elif delta_hour == 1:
+        time_stepping = 'hourly'
+    else:
+        print(f"Time stepping is {delta_hour} hours - not supported.")
 
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
     out_nc = os.path.join(output_folder_LW, f"longwave_downscaled_{month_tag}.nc")
@@ -882,8 +1144,8 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
         cloud_frac = np.clip(0.832 * np.exp((RH_700 - 100) / 41.6), 0, 1)
 
         e = a * np.exp((b * (D_now - 273.15)) / ((D_now - 273.15) + c))
-        eps_atm = (1.083 * (1 + Zs * cloud_frac**2)) * (1 - Xs * np.exp(-Ys * e / T_now))
-        Qli = eps_atm * sigma * T_now**4
+        eps_atm = (1.083 * (1 + Zs * cloud_frac ** 2)) * (1 - Xs * np.exp(-Ys * e / T_now))
+        Qli = eps_atm * sigma * T_now ** 4
 
         Qli_resampled = np.empty_like(dem, dtype=np.float32)
         reproject(
@@ -897,21 +1159,67 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
         )
 
         Qli_resampled[dem_mask] = np.nan
-        data_list.append(Qli_resampled[np.newaxis, ...])
-        time_list.append(date)
 
-    write_downscaled_to_netcdf(
-        variables_dict={
-            "lwr": (data_list, "W/m^2", "Downscaled longwave radiation")
-        },
-        time_list=time_list,
-        dem_shape=dem.shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
+        if time_stepping == 'hourly':
+            if i == 0:
+                data_list.append(Qli_resampled[np.newaxis, ...])
+                time_list.append(date)
+            else:
+                previous_date = pd.to_datetime(str(time[i - 1]))
 
-    print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
+                data_list.append(Qli_resampled[np.newaxis, ...])
+                time_list.append(date)
+
+                # case 1: new day started: save previous day
+                if date.day != previous_date.day:
+                    save_day_file(data_list=data_list[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_LW,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "longwave_downscaled",
+                                           "short_name": "lwr",
+                                           "unit": "W/m^2",
+                                           "variable_description": "Downscaled longwave radiation"}
+                                  )
+                    data_list = [data_list[-1]]
+                    time_list = [time_list[-1]]
+
+                # case 2: last timestep: save current day
+                if timestep == time[-1]:
+                    save_day_file(data_list=data_list[:-1],
+                                  time_list=time_list[:-1],
+                                  date=previous_date,
+                                  output_folder_T=output_folder_LW,
+                                  dem=dem,
+                                  dem_transform=dem_transform,
+                                  dem_crs=dem_crs,
+                                  dict_nc={"variable_name": "longwave_downscaled",
+                                           "short_name": "lwr",
+                                           "unit": "W/m^2",
+                                           "variable_description": "Downscaled longwave radiation"}
+                                  )
+
+        else:
+            data_list.append(Qli_resampled[np.newaxis, ...])
+            time_list.append(date)
+
+    if time_stepping == 'daily':
+        write_downscaled_to_netcdf(
+            variables_dict={
+                "lwr": (data_list, "W/m^2", "Downscaled longwave radiation")
+            },
+            time_list=time_list,
+            dem_shape=dem.shape,
+            dem_transform=dem_transform,
+            dem_crs=dem_crs,
+            out_nc=out_nc
+        )
+
+    print(f"\nDownscaling complete.")
+
 
 
 
