@@ -10,7 +10,7 @@ conda activate microenv
 
 # Path to your Python script and config
 SCRIPT_PATH="./main_micromet.py"
-CONFIG_PATH="./micro_config_MAIPO_AUTODEM.json"
+CONFIG_PATH="./micro_config_DEMO_MAIPO.json"
 
 echo "Running MicroMet downscaling..."
 python "$SCRIPT_PATH" "$CONFIG_PATH"
