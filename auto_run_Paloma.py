@@ -10,17 +10,21 @@ import os
 import subprocess
 
 # Aree e bounding box
+# areas = {
+#     "Area01":  (375500, 6819500, 427500, 6878500),
+#     "Area02":  (375500, 6642500, 427500, 6701500),
+#     "Area03":  (335000, 6560000, 390500, 6624000),
+#     "Area04":  (340000, 6417500, 395500, 6478500),
+#     "Area05":  (390000, 6304000, 448500, 6400000),
+#     "Area06":  (366000, 6205000, 428500, 6342500),
+#     "Area07":  (342000, 6084000, 398500, 6158500),
+#     "Area08":  (323500, 5993500, 375500, 6052500),
+#     "Area09":  (288000, 5970500, 328500, 6011000),
+#     "Area10": (271500, 5875500, 323500, 5934500),
+# }
+
 areas = {
-    "Area01":  (375500, 6819500, 427500, 6878500),
-    "Area02":  (375500, 6642500, 427500, 6701500),
-    "Area03":  (335000, 6560000, 390500, 6624000),
-    "Area04":  (340000, 6417500, 395500, 6478500),
-    "Area05":  (390000, 6304000, 448500, 6400000),
-    "Area06":  (366000, 6205000, 428500, 6342500),
-    "Area07":  (342000, 6084000, 398500, 6158500),
-    "Area08":  (323500, 5993500, 375500, 6052500),
-    "Area09":  (288000, 5970500, 328500, 6011000),
-    "Area10": (271500, 5875500, 323500, 5934500),
+    "Area06":  (366000, 6205000, 428500, 6342500)
 }
 
 # Zone -> lapse rates key
@@ -35,9 +39,9 @@ south_areas = {"Area07", "Area08", "Area09", "Area10"}
 
 # Base paths (da adattare al tuo cluster)
 container = "/mnt/CEPH_PROJECTS/SNOWCOP/Paloma"
-base_config = "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/micropyzzotmet/micro_config_SNOWCOP_DOMAIN.json"
-lapse_rates_file = "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/micropyzzotmet/auxiliary_data/lapse_rates_doc.json"
-run_script = "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/micropyzzotmet/run_micromet_SNOWCOP_DOMAIN.sh"
+base_config = "/home/vpremier/Documents/git/micropyzzotmet/micro_config_SNOWCOP_DOMAIN.json"
+lapse_rates_file = "/home/vpremier/Documents/git/micropyzzotmet/auxiliary_data/lapse_rates_doc.json"
+run_script = "/home/vpremier/Documents/git/micropyzzotmet/run_micromet_SNOWCOP_DOMAIN.sh"
 
 # Carica lapse rates
 with open(lapse_rates_file) as f:

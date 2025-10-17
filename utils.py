@@ -24,7 +24,7 @@ from pyproj import Transformer
 from rasterio.enums import Resampling
 from affine import Affine
 from tempfile import TemporaryDirectory
-
+import zarr
 
 def parse_yes_no_flag(value, var_name=""):
     """
@@ -390,105 +390,80 @@ def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodat
     return curvature_path
 
 
-def write_downscaled_to_netcdf(
+
+
+def write_downscaled_to_file(
     variables_dict,
     time_list,
     dem_shape,
     dem_transform,
     dem_crs,
     out_nc,
-    outformat = 'nc',
-    compression = False,
-    scale_factor = 0.01,
-    dtype = "int32"
+    scale_factor=0.01,
+    dtype="int32",
+    complevel=4,
+    outformat="nc",
+    compression=True,
 ):
-    """
-    Save multiple downscaled variables to NetCDF with spatial referencing.
-
-    Parameters:
-        variables_dict: dict of {var_name: (data_list, units, description)}
-        time_list: list of datetime objects
-        dem_shape: shape of the DEM used as reference
-        dem_transform: Affine transform of the DEM
-        dem_crs: CRS of the DEM
-        out_nc: full path to the output NetCDF file
-    """
-
+    
     height, width = dem_shape
     x_coords = np.arange(width) * dem_transform.a + dem_transform.c + dem_transform.a / 2
     y_coords = np.arange(height) * dem_transform.e + dem_transform.f + dem_transform.e / 2
 
     dataset_vars = {}
-    
     decimals = int(abs(np.log10(scale_factor)))
-    
+
     for var_name, (data_list, units, description) in variables_dict.items():
         data_stack = np.concatenate(data_list, axis=0)
-        
-        if compression: 
-            # round to desired decimal 
-            data_stack = np.round(data_stack, decimals=decimals).astype(np.float32)
 
+        if compression:
+            data_stack = np.round(data_stack, decimals=decimals).astype(np.float32)
 
         da = xr.DataArray(
             data_stack,
             dims=["time", "y", "x"],
             coords={"time": time_list, "y": y_coords, "x": x_coords},
-            attrs={ 
-                "units": units,
-                "description": description,
-            },
+            attrs={"units": units, "description": description},
         )
-
 
         dataset_vars[var_name] = da
 
     ds_out = xr.Dataset(dataset_vars)
-    ds_out = ds_out.rio.write_transform(dem_transform)
-    ds_out = ds_out.rio.write_crs(dem_crs)
+    ds_out = (
+        ds_out
+        .rio.write_transform(dem_transform)
+        .rio.write_crs(dem_crs)
+        .rio.set_spatial_dims(x_dim="x", y_dim="y")
+        .rio.write_coordinate_system()
+    )
 
     os.makedirs(os.path.dirname(out_nc), exist_ok=True)
-    
-    
-    if compression and outformat == 'nc':
-        # Encoding: match dtype and compression
-        encoding = {
-            var: {
-                "zlib": True,
-                "complevel": 4,
-                "dtype": dtype,
-                "scale_factor": scale_factor
+
+    if outformat == "nc":
+        if compression:
+            encoding = {
+                var: {
+                    "zlib": True,
+                    "complevel": complevel,
+                    "dtype": dtype,
+                    "scale_factor": scale_factor,
+                }
+                for var in dataset_vars
             }
+            ds_out.to_netcdf(out_nc, encoding=encoding)
+        else:
+            ds_out.to_netcdf(out_nc)
+
+    elif outformat == "zarr":
+        compressor = zarr.Blosc(cname="zstd", clevel=complevel, shuffle=2)
+        encoding = {
+            var: {"compressor": compressor, "scale_factor": scale_factor, "dtype": dtype}
             for var in dataset_vars
         }
-        
-        # Apply CRS and spatial dimensions
-        ds_out = (
-            ds_out
-            .rio.write_crs(dem_crs)
-            .rio.set_spatial_dims(x_dim="x", y_dim="y")
-            .rio.write_coordinate_system()
-        )
-            
-        ds_out.to_netcdf(out_nc, encoding=encoding)
-        
-    elif compression and outformat == 'zarr':
-    
-        # Encoding: match dtype and compression
-        encoding = {
-            var: {          
-                "dtype": dtype,
-                "scale_factor": scale_factor
-            }
-            for var in dataset_vars
-        }
-        
-        ds_out.to_zarr(out_nc.replace(".nc",".zarr"), encoding=encoding)
+        ds_out.to_zarr(out_nc.replace(".nc", ".zarr"), encoding=encoding)
 
-    elif not compression:
-        ds_out.to_netcdf(out_nc)
+    print(f"\nSaved dataset: {out_nc if outformat=='nc' else out_nc.replace('.nc', '.zarr')}")
 
-    print(f"\nSaved NetCDF: {out_nc}")
     
     
 

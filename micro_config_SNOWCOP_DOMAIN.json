@@ -1,5 +1,5 @@
 {
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/SNOWCOPDOMAIN_Downscaled_micromet",
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Vale_test_micromet",
   "dem_file": null,
   "download_dem_extent": {
     "lat_min": 5816500,

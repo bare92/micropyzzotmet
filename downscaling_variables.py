@@ -19,7 +19,7 @@ import pandas as pd
 from rasterio.warp import reproject, Resampling
 import matplotlib.pyplot as plt
 from affine import Affine
-from utils import write_downscaled_to_netcdf
+from utils import write_downscaled_to_file
 from scipy.stats import linregress
 from scipy import interpolate as spint
 import copy
@@ -123,7 +123,7 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
         data_list.append(temperature_downscaled[np.newaxis, ...])
         time_list.append(date)
 
-    write_downscaled_to_netcdf(
+    write_downscaled_to_file(
         variables_dict={
             "t2m": (data_list, "degK", "Downscaled air temperature")
         },
@@ -132,8 +132,8 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
         dem_transform=dem_transform,
         dem_crs=dem_crs,
         out_nc=out_nc,
-        scale_factor=0.01,
-        dtype = "int32"
+        outformat = 'zarr',
+        scale_factor=0.1
     )
 
     print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
@@ -278,15 +278,15 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
         time_list.append(date)
 
     
-    write_downscaled_to_netcdf(
+    write_downscaled_to_file(
         variables_dict={"SW": (Qsi_all, "W m-2", "Downscaled incoming shortwave radiation")},
         time_list=time_list,
         dem_shape=dem_shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
         out_nc=out_nc,
-        scale_factor=0.01,
-        dtype = "int32"
+        outformat = 'zarr',
+        scale_factor=1
     )
 
 
@@ -425,13 +425,15 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
             Qsi_all.append(Qsi_hourly[np.newaxis, ...])
             time_list.append(date_i)
             
-    write_downscaled_to_netcdf(
+    write_downscaled_to_file(
         variables_dict={"SW": (Qsi_all, "W m-2", "Topographically corrected shortwave radiation")},
         time_list=time_list,
         dem_shape=dem_shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc
+        out_nc=out_nc,
+        outformat = 'zarr',
+        scale_factor=1
     )
 
 
@@ -541,7 +543,7 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
         RH_all.append(RH[np.newaxis, ...])
         time_list.append(date)
 
-    write_downscaled_to_netcdf(
+    write_downscaled_to_file(
         variables_dict={
             "RH": (RH_all, "%", "Downscaled relative humidity")
         },
@@ -549,7 +551,9 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc
+        out_nc=out_nc,
+        outformat = 'zarr',
+        scale_factor=1
     )
 
 
@@ -634,7 +638,7 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
 
 
 
-    write_downscaled_to_netcdf(
+    write_downscaled_to_file(
         variables_dict={
             "P": (precip_all, "mm", "Downscaled precipitation")
         },
@@ -642,7 +646,9 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc
+        out_nc=out_nc,
+        outformat = 'zarr',
+        scale_factor=0.1
     )
 
 
@@ -751,7 +757,7 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
         wind_dir_all.append(wind_direction_deg[np.newaxis, ...])
         time_list.append(date)
 
-    write_downscaled_to_netcdf(
+    write_downscaled_to_file(
         variables_dict={
             "wind_speed": (wind_speed_all, "m s-1", "Downscaled wind speed"),
             "wind_direction": (wind_dir_all, "degrees from north", "Downscaled wind direction")
@@ -760,7 +766,9 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc
+        out_nc=out_nc,
+        outformat = 'zarr',
+        scale_factor=1
     )
 
     print(f"\nWind downscaling complete. NetCDF saved in: {out_nc}")
@@ -778,7 +786,7 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
     from rasterio.transform import from_origin
     from rasterio.crs import CRS
 
-    from utils import write_downscaled_to_netcdf  # Make sure this function is available in utils
+    from utils import write_downscaled_to_file  # Make sure this function is available in utils
 
     geopotential_path = './auxiliary_data/geopotential3.nc'
     
@@ -904,7 +912,7 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
         data_list.append(Qli_resampled[np.newaxis, ...])
         time_list.append(date)
 
-    write_downscaled_to_netcdf(
+    write_downscaled_to_file(
         variables_dict={
             "lwr": (data_list, "W/m^2", "Downscaled longwave radiation")
         },
@@ -912,7 +920,9 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc
+        out_nc=out_nc,
+        outformat = 'zarr',
+        scale_factor=1
     )
 
     print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
