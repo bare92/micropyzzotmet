@@ -396,7 +396,11 @@ def write_downscaled_to_netcdf(
     dem_shape,
     dem_transform,
     dem_crs,
-    out_nc
+    out_nc,
+    outformat = 'nc',
+    compression = False,
+    scale_factor = 0.01,
+    dtype = "int32"
 ):
     """
     Save multiple downscaled variables to NetCDF with spatial referencing.
@@ -415,16 +419,27 @@ def write_downscaled_to_netcdf(
     y_coords = np.arange(height) * dem_transform.e + dem_transform.f + dem_transform.e / 2
 
     dataset_vars = {}
-
+    
+    decimals = int(abs(np.log10(scale_factor)))
+    
     for var_name, (data_list, units, description) in variables_dict.items():
         data_stack = np.concatenate(data_list, axis=0)
+        
+        if compression: 
+            # round to desired decimal 
+            data_stack = np.round(data_stack, decimals=decimals).astype(np.float32)
+
 
         da = xr.DataArray(
             data_stack,
             dims=["time", "y", "x"],
             coords={"time": time_list, "y": y_coords, "x": x_coords},
-            attrs={"units": units, "description": description}
+            attrs={ 
+                "units": units,
+                "description": description,
+            },
         )
+
 
         dataset_vars[var_name] = da
 
@@ -433,9 +448,50 @@ def write_downscaled_to_netcdf(
     ds_out = ds_out.rio.write_crs(dem_crs)
 
     os.makedirs(os.path.dirname(out_nc), exist_ok=True)
-    ds_out.to_netcdf(out_nc)
+    
+    
+    if compression and outformat == 'nc':
+        # Encoding: match dtype and compression
+        encoding = {
+            var: {
+                "zlib": True,
+                "complevel": 4,
+                "dtype": dtype,
+                "scale_factor": scale_factor
+            }
+            for var in dataset_vars
+        }
+        
+        # Apply CRS and spatial dimensions
+        ds_out = (
+            ds_out
+            .rio.write_crs(dem_crs)
+            .rio.set_spatial_dims(x_dim="x", y_dim="y")
+            .rio.write_coordinate_system()
+        )
+            
+        ds_out.to_netcdf(out_nc, encoding=encoding)
+        
+    elif compression and outformat == 'zarr':
+    
+        # Encoding: match dtype and compression
+        encoding = {
+            var: {          
+                "dtype": dtype,
+                "scale_factor": scale_factor
+            }
+            for var in dataset_vars
+        }
+        
+        ds_out.to_zarr(out_nc.replace(".nc",".zarr"), encoding=encoding)
+
+    elif not compression:
+        ds_out.to_netcdf(out_nc)
 
     print(f"\nSaved NetCDF: {out_nc}")
+    
+    
+
 
 def convert_micromet_to_s3m_inputs(
     micromet_output_dir: str,

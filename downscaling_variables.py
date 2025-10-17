@@ -125,13 +125,15 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
 
     write_downscaled_to_netcdf(
         variables_dict={
-            "t2m": (data_list, "degC", "Downscaled air temperature")
+            "t2m": (data_list, "degK", "Downscaled air temperature")
         },
         time_list=time_list,
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc
+        out_nc=out_nc,
+        scale_factor=0.01,
+        dtype = "int32"
     )
 
     print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
@@ -282,7 +284,9 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
         dem_shape=dem_shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc
+        out_nc=out_nc,
+        scale_factor=0.01,
+        dtype = "int32"
     )
 
 
