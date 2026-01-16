@@ -19,68 +19,60 @@ import time
 from joblib import Parallel, delayed
 
 # Temperature
-def run_temperature(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+def run_temperature(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk):
     output_folder = os.path.join(working_directory, 'outputs', 'Temperature')
     downscale_Temperature(
         dem_path, curr_climate_file, output_folder,
-        custom_lapse_rates.get("temperature", {}).get("monthly"),
-        calibrate_lapse_rate=calibrate_lapse_rate,
-        dem_nodata=dem_nodata
+        custom_lapse_rate=custom_lapse_rates.get("Temperature"),
+        dem_nodata=dem_nodata,
+        time_chunk = time_chunk
     )
 
-# Shortwave Radiation
-# def run_shortwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
-#     output_folder = os.path.join(working_directory, 'outputs', 'SW')
-#     downscale_SW_original(
-#         dem_path, curr_climate_file, output_folder,
-#         z_700=3000, S0=1370.0,
-#         custom_lapse_rate=custom_lapse_rates.get("temperature", {}).get("monthly"),
-#         calibrate_lapse_rate=calibrate_lapse_rate,
-#         dem_nodata=dem_nodata
-#     )
     
 # Shortwave Radiation custom that uses era5 input ssrd
-def run_shortwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+def run_shortwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk):
     output_folder = os.path.join(working_directory, 'outputs', 'SW')
-    downscale_SW_custom(dem_path, curr_climate_file, output_folder, dem_nodata=dem_nodata)
+    downscale_SW_custom(dem_path, curr_climate_file, output_folder, dem_nodata=dem_nodata, time_chunk=time_chunk)
     
 # Relative Humidity
-def run_relative_humidity(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+def run_relative_humidity(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk):
     output_folder = os.path.join(working_directory, 'outputs', 'RH')
     downscale_RH(
         dem_path, curr_climate_file, output_folder,
         custom_lapse_rate=custom_lapse_rates.get("temperature", {}).get("monthly"),
-        calibrate_lapse_rate=calibrate_lapse_rate,
-        dem_nodata=dem_nodata
+        dem_nodata=dem_nodata,
+        time_chunk=time_chunk
     )
 
 # Precipitation
-def run_precipitation(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata):
+def run_precipitation(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk):
     output_folder = os.path.join(working_directory, 'outputs', 'P')
     downscale_Precipitation(
         dem_path, curr_climate_file, output_folder,
         custom_gamma=custom_lapse_rates.get("precipitation", {}).get("monthly"),
-        dem_nodata=dem_nodata
+        dem_nodata=dem_nodata,
+        time_chunk=time_chunk
     )
 
 # Wind
-def run_wind(curr_climate_file, dem_path, working_directory, variables_to_downscale, dem_nodata):
+def run_wind(curr_climate_file, dem_path, working_directory, variables_to_downscale, dem_nodata, time_chunk):
     output_folder = os.path.join(working_directory, 'outputs', 'Wind')
     downscale_Wind(
         dem_path, curr_climate_file, output_folder,
         slope_weight=0.5,
-        dem_nodata=dem_nodata
+        dem_nodata=dem_nodata,
+        time_chunk=time_chunk
     )
 
 # Longwave Radiation
-def run_longwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata):
+def run_longwave(curr_climate_file, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk):
     output_folder = os.path.join(working_directory, 'outputs', 'LW')
     downscale_LW(
         dem_path, curr_climate_file, output_folder,
         z_700=3000,
         custom_lapse_rate=custom_lapse_rates.get("temperature", {}).get("monthly"),
-        calibrate_lapse_rate=calibrate_lapse_rate,
-        dem_nodata=dem_nodata
+        dem_nodata=dem_nodata,
+        time_chunk=time_chunk
     )
 
 
@@ -109,7 +101,9 @@ def run_micropezzomet(config_path):
     jobs_downscaling = config["jobs_parallel_downscale"]
     jobs_download = config["jobs_parallel_download"]
     dem_nodata = config.get("dem_nodata", None)
-    calibrate_lapse_rate = parse_yes_no_flag(config["auto_calibrate_lapse_rate"], "n")
+    
+    time_chunk = config.get("time_chunk", 24)
+
     
     if era_path is None:
         print("Downloading ERA5-Land data...")
@@ -136,37 +130,37 @@ def run_micropezzomet(config_path):
     # Air Temperature
     if parse_yes_no_flag(variables_to_downscale.get("t_air", "n"), "t_air"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_temperature)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+            delayed(run_temperature)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
 
     # Shortwave Radiation
     if parse_yes_no_flag(variables_to_downscale.get("sw_radiation", "n"), "sw_radiation"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_shortwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+            delayed(run_shortwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
 
     # Relative Humidity
     if parse_yes_no_flag(variables_to_downscale.get("relative_humidity", "n"), "relative_humidity"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_relative_humidity)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+            delayed(run_relative_humidity)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
 
     # Precipitation
     if parse_yes_no_flag(variables_to_downscale.get("precipitation", "n"), "precipitation"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_precipitation)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata) for f in climate_files
+            delayed(run_precipitation)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
 
     # Wind
     if parse_yes_no_flag(variables_to_downscale.get("wind", "n"), "wind"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_wind)(f, dem_path, working_directory, variables_to_downscale, dem_nodata) for f in climate_files
+            delayed(run_wind)(f, dem_path, working_directory, variables_to_downscale, dem_nodata, time_chunk) for f in climate_files
         )
 
     # Longwave Radiation
     if parse_yes_no_flag(variables_to_downscale.get("lw_radiation", "n"), "lw_radiation"):
         Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, calibrate_lapse_rate, dem_nodata) for f in climate_files
+            delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
         
     # Optionally generate S3M-compatible inputs

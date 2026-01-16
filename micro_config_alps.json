@@ -1,5 +1,5 @@
 {
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet_4326",
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet_4326_2020_flip",
   "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/static_layers_s3m_alps/model_extent_DEM_500m_wgs84.tif",
     "download_dem_extent": {
   "lat_min": null,
@@ -20,11 +20,11 @@
     "wind": "n",
     "lw_radiation": "n"
   },
-  "start_date": "2010-10-01",
-  "end_date": "2024-09-30",
+  "start_date": "2020-01-01",
+  "end_date": "2025-06-30",
   "aggregate_daily": "y",
+  "time_chunk": 24,
   "dem_nodata": -9999,
-  "auto_calibrate_lapse_rate": "n",
   "generate_s3m_input": "y",
   "custom_lapse_rates": {
     "temperature": {

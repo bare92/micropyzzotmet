@@ -1,5 +1,5 @@
 {
-  "working_directory": "../DEMO_micromet_outputs",
+  "working_directory": "../DEMO_micromet_outputs_check",
   "dem_file": null,
     "download_dem_extent": {
     "lat_min": 6205000,
@@ -15,16 +15,17 @@
   "variables_to_downscale": {
     "t_air": "y",
     "sw_radiation": "y",
-    "relative_humidity": "n",
-    "precipitation": "n",
-    "wind": "n",
-    "lw_radiation": "n"
+    "relative_humidity": "y",
+    "precipitation": "y",
+    "wind": "y",
+    "lw_radiation": "y"
   },
   "start_date": "2017-04-01",
-  "end_date": "2018-03-31",
-  "aggregate_daily": "n",
+  "end_date": "2017-07-31",
+  "aggregate_daily": "y",
+  "time_chunk": 24,
   "dem_nodata": -32768,
-  "auto_calibrate_lapse_rate": "n",
+  "generate_s3m_input": "y",
   "custom_lapse_rates": {
     "temperature": {
       "monthly": [8.1, 7.9, 7.78, 7.76, 7.9, 8, 8.2, 8.4, 8.6, 8.7, 8.4, 8.32]

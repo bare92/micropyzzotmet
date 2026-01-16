@@ -437,6 +437,98 @@ def write_downscaled_to_netcdf(
 
     print(f"\nSaved NetCDF: {out_nc}")
 
+
+
+def write_downscaled_to_netcdf(
+    variables_dict,
+    time_list,
+    dem_shape,
+    dem_transform,
+    dem_crs,
+    out_nc,
+    nodata_value=-9999,
+    mode="w"
+):
+    """
+    Save variables to NetCDF with spatial referencing (CF grid mapping),
+    int16 dtype, no compression, and nodata via _FillValue in encoding.
+    """
+
+    height, width = dem_shape
+    x_coords = np.arange(width) * dem_transform.a + dem_transform.c + dem_transform.a / 2
+    y_coords = np.arange(height) * dem_transform.e + dem_transform.f + dem_transform.e / 2
+
+    dataset_vars = {}
+
+    for var_name, (data_list, units, description) in variables_dict.items():
+        data_stack = np.concatenate(data_list, axis=0).astype(np.int16, copy=False)
+
+        # NOTE: do NOT put _FillValue in attrs (xarray reserves it for encoding)
+        da = xr.DataArray(
+            data_stack,
+            dims=["time", "y", "x"],
+            coords={"time": time_list, "y": y_coords, "x": x_coords},
+            attrs={"units": units, "description": description, "nodata": int(nodata_value)}
+        )
+        dataset_vars[var_name] = da
+
+    ds_out = xr.Dataset(dataset_vars)
+
+    # Write georeferencing
+    # ds_out = ds_out.rio.write_transform(dem_transform)
+    # ds_out = ds_out.rio.write_crs(dem_crs)
+    
+    ds_out = xr.Dataset(dataset_vars)
+    ds_out = ds_out.rio.write_transform(dem_transform)
+    ds_out = ds_out.rio.write_crs(dem_crs)
+
+    # Ensure CF grid mapping is attached to each variable
+    # (rio.write_crs typically creates "spatial_ref")
+    for var_name in dataset_vars.keys():
+        ds_out[var_name].attrs["grid_mapping"] = "spatial_ref"
+
+    encoding = {
+        var_name: {
+            "dtype": "int16",
+            "_FillValue": np.int16(nodata_value),
+            "zlib": False,
+            "complevel": 0
+        }
+        for var_name in dataset_vars.keys()
+    }
+
+    os.makedirs(os.path.dirname(out_nc), exist_ok=True)
+
+    # Important: mode="a" overwrites variables (doesn't truly append time).
+    # Use this writer only for whole-file writes (mode="w") unless you know what you're doing.
+    ds_out.to_netcdf(
+        out_nc,
+        mode=mode,
+        format="NETCDF4",
+        unlimited_dims=["time"],
+        encoding=encoding
+    )
+
+    print(f"\nSaved NetCDF: {out_nc}")
+
+
+
+# maybe fixedS version
+
+import os
+import glob
+import gzip
+import shutil
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+import rasterio
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+from rasterio.crs import CRS
+from joblib import Parallel, delayed
+
+
 def convert_micromet_to_s3m_inputs(
     micromet_output_dir: str,
     output_dir: str,
@@ -470,13 +562,18 @@ def convert_micromet_to_s3m_inputs(
         resampling=Resampling.bilinear
     )
 
-    # --- Create x, y coordinates and flip if needed ---
-    x_coords = np.arange(dst_width) * dst_transform.a + dst_transform.c + dst_transform.a / 2
-    y_coords = np.arange(dst_height) * dst_transform.e + dst_transform.f + dst_transform.e / 2
+    # --- Build grid in S3M convention: row 0 = southernmost, y increases northward ---
+    cellsize = float(abs(dst_transform.a))  # assume square cells
+    xllcorner = float(dst_transform.c)
+    # southern edge from GDAL-like transform (f = north edge, e < 0)
+    yllcorner = float(dst_transform.f + dst_height * dst_transform.e)
 
-    if y_coords[1] > y_coords[0]:  # flip to top-to-bottom
-        y_coords = y_coords[::-1]
-        terrain = terrain[::-1]
+    # centers of pixels
+    x_coords = xllcorner + (np.arange(dst_width) + 0.5) * cellsize
+    y_coords = yllcorner + (np.arange(dst_height) + 0.5) * cellsize  # south -> north
+
+    # terrain from reproject() is north->south; flip to south->north
+    terrain = terrain[::-1, :]
 
     lon2d, lat2d = np.meshgrid(x_coords, y_coords)
 
@@ -495,97 +592,375 @@ def convert_micromet_to_s3m_inputs(
         paths = sorted(glob.glob(os.path.join(micromet_output_dir, folder, "*.nc")))
         if not paths:
             continue
+
         ds = xr.open_mfdataset(paths, combine="by_coords")
         var_array = ds[var_in]
+
         if time_index is None:
             time_index = pd.to_datetime(var_array.time.values)
+
+        # store full DataArray; interpolation to S3M grid happens later
         var_data[var_out] = var_array
 
-    if time_index is None or time_index.empty:
+    if time_index is None or len(time_index) == 0:
         raise RuntimeError("No time data found in Micromet outputs")
 
-    # --- Write one NetCDF.gz file per timestep ---
+    # --- Worker: write one NetCDF.gz file per timestep ---
     def _write_one_s3m_file(i, t):
-        import rioxarray  # needed in subprocess
         date_str = pd.to_datetime(t).strftime("%Y%m%d%H%M")
         filename_nc = os.path.join(output_dir, f"MeteoData_{date_str}.nc")
         filename_gz = filename_nc + ".gz"
-    
+
         if os.path.exists(filename_gz):
             return
-    
+
         data_vars = {}
-    
-        # Interpolation is done using original y_coords
+
+        # Interpolate each variable onto (x_coords, y_coords) in S3M orientation
         for var_name in ["Rain", "AirTemperature", "IncRadiation", "RelHumidity"]:
             if var_name in var_data:
-                data = var_data[var_name].isel(time=i).interp(
-                    x=x_coords, y=y_coords, method="nearest"
-                ).values.astype(np.float32)
+                da_in = var_data[var_name].isel(time=i)
+
+                # IMPORTANT:
+                # - da_in has its own x/y (whatever order).
+                # - We request values at y_coords (south->north) and x_coords.
+                # - Resulting array is already oriented south->north, so no flip needed.
+                da_interp = da_in.interp(x=x_coords, y=y_coords, method="nearest")
+                data = da_interp.values.astype(np.float32)
+
+                # Handle nodata and unit conversion
                 data[np.isnan(data)] = nodata_value
                 if var_name == "AirTemperature":
-                    data[data != nodata_value] = data[data != nodata_value] - 273.15
+                    # convert from K to °C, preserving nodata
+                    mask = data != nodata_value
+                    data[mask] = data[mask] - 273.15
             else:
                 data = np.full((dst_height, dst_width), nodata_value, dtype=np.float32)
-    
-            # Always flip vertically to match terrain
-            data = data[::-1, :]
-    
+
             da = xr.DataArray(
                 data,
                 dims=("y", "x"),
-                coords={"x": x_coords, "y": y_coords[::-1]},
-                attrs={"coordinates": "longitude latitude"}
+                coords={"x": x_coords, "y": y_coords},
+                attrs={"coordinates": "longitude latitude"},
             )
             data_vars[var_name] = da
-    
-        # Flip static fields
+
+        # Static fields (already south->north and matching coords)
         data_vars["terrain"] = xr.DataArray(
-            terrain[::-1, :],
+            terrain,
             dims=("y", "x"),
-            coords={"x": x_coords, "y": y_coords[::-1]},
-            attrs={"coordinates": "longitude latitude"}
+            coords={"x": x_coords, "y": y_coords},
+            attrs={"coordinates": "longitude latitude"},
         )
         data_vars["longitude"] = xr.DataArray(
-            lon2d[::-1, :],
+            lon2d,
             dims=("y", "x"),
-            coords={"x": x_coords, "y": y_coords[::-1]}
+            coords={"x": x_coords, "y": y_coords},
         )
         data_vars["latitude"] = xr.DataArray(
-            lat2d[::-1, :],
+            lat2d,
             dims=("y", "x"),
-            coords={"x": x_coords, "y": y_coords[::-1]},
-            attrs={"_FillValue": nodata_value}
+            coords={"x": x_coords, "y": y_coords},
+            attrs={"_FillValue": nodata_value},
         )
-    
+
         # Build dataset
         ds_out = xr.Dataset(data_vars)
-        ds_out = ds_out.rio.write_transform(dst_transform)
-        ds_out = ds_out.rio.write_crs(dst_crs)
-    
+
+        # Basic georeferencing metadata (S3M-style + CRS info)
         ds_out.attrs.update({
             "ncols": dst_width,
             "nrows": dst_height,
             "nodata_value": int(nodata_value),
-            "xllcorner": float(dst_transform.c),
-            "yllcorner": float(dst_transform.f + dst_height * dst_transform.e),
-            "cellsize": float(dst_transform.a)
+            "xllcorner": xllcorner,
+            "yllcorner": yllcorner,
+            "cellsize": cellsize,
+            "crs": dst_crs.to_string() if hasattr(dst_crs, "to_string") else str(dst_crs),
         })
-    
+
+        # Write NetCDF, then gzip
         ds_out.to_netcdf(filename_nc)
-    
-        with open(filename_nc, 'rb') as f_in, gzip.open(filename_gz, 'wb') as f_out:
+
+        with open(filename_nc, "rb") as f_in, gzip.open(filename_gz, "wb") as f_out:
             shutil.copyfileobj(f_in, f_out)
+
         os.remove(filename_nc)
 
-
-
-    # --- Run in parallel ---
+    # --- Run in parallel over all timesteps ---
     Parallel(n_jobs=n_jobs)(
         delayed(_write_one_s3m_file)(i, t) for i, t in enumerate(time_index)
     )
 
-    print(f"\n 3M .nc.gz export complete: {output_dir} ")
+    print(f"\nS3M .nc.gz export complete: {output_dir}")
+
+
+
+def convert_micromet_to_s3m_inputs(
+    micromet_output_dir: str,
+    output_dir: str,
+    dem_path: str,
+    nodata_value: float = -9999.0,
+    n_jobs: int = 4
+):
+    import os
+    import glob
+    import gzip
+    import shutil
+    import numpy as np
+    import pandas as pd
+    import xarray as xr
+    import rasterio
+    from rasterio.crs import CRS
+    from rasterio.warp import reproject, Resampling, calculate_default_transform
+    from affine import Affine
+    from joblib import Parallel, delayed
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # --- Load and reproject DEM to WGS84 (EPSG:4326) ---
+    with rasterio.open(dem_path) as src:
+        terrain_src = src.read(1).astype(np.float32)
+        src_crs = src.crs
+        src_transform = src.transform
+        src_width, src_height = src.width, src.height
+        bounds = src.bounds
+
+    dst_crs = CRS.from_epsg(4326)
+    dst_transform, dst_width, dst_height = calculate_default_transform(
+        src_crs, dst_crs, src_width, src_height, *bounds
+    )
+
+    terrain = np.full((dst_height, dst_width), nodata_value, dtype=np.float32)
+    reproject(
+        source=terrain_src,
+        destination=terrain,
+        src_transform=src_transform,
+        src_crs=src_crs,
+        dst_transform=dst_transform,
+        dst_crs=dst_crs,
+        resampling=Resampling.bilinear
+    )
+
+    # --- Build grid in S3M convention: row 0 = southernmost, y increases northward ---
+    cellsize = float(abs(dst_transform.a))  # assume square-ish cells
+    xllcorner = float(dst_transform.c)
+    # southern edge from GDAL-like transform (f = north edge, e < 0)
+    yllcorner = float(dst_transform.f + dst_height * dst_transform.e)
+
+    # centers of pixels
+    x_coords = xllcorner + (np.arange(dst_width) + 0.5) * cellsize
+    y_coords = yllcorner + (np.arange(dst_height) + 0.5) * cellsize  # south -> north
+
+    # terrain from reproject() is north->south; flip to south->north
+    terrain = terrain[::-1, :]
+
+    lon2d, lat2d = np.meshgrid(x_coords, y_coords)
+
+    # --- Map Micromet folder/var -> S3M var name ---
+    var_map = {
+        "Temperature": ("t2m", "AirTemperature"),
+        "SW": ("SW", "IncRadiation"),
+        "RH": ("RH", "RelHumidity"),
+        "P": ("P", "Rain"),
+    }
+
+    # Collect paths per variable (keep paths, not arrays, to avoid heavy pickling)
+    var_paths = {}
+    time_index = None
+
+    for folder, (var_in, var_out) in var_map.items():
+        paths = sorted(glob.glob(os.path.join(micromet_output_dir, folder, "*.nc")))
+        if not paths:
+            continue
+
+        # Open just to get time axis (cheap)
+        ds0 = xr.open_dataset(paths[0])
+        # pick the time coordinate name
+        if "time" in ds0:
+            tvals = pd.to_datetime(ds0["time"].values)
+        elif "valid_time" in ds0:
+            tvals = pd.to_datetime(ds0["valid_time"].values)
+        else:
+            ds0.close()
+            raise RuntimeError(f"No time coordinate found in {paths[0]}")
+
+        ds0.close()
+
+        # Build global time index from first available variable
+        if time_index is None:
+            # For multi-file monthly outputs we need full index: open_mfdataset for time only
+            ds_time = xr.open_mfdataset(paths, combine="by_coords", chunks={})
+            tcoord = "time" if "time" in ds_time.coords else ("valid_time" if "valid_time" in ds_time.coords else None)
+            if tcoord is None:
+                ds_time.close()
+                raise RuntimeError(f"No time coordinate found across {folder} outputs")
+            time_index = pd.to_datetime(ds_time[tcoord].values)
+            ds_time.close()
+
+        var_paths[var_out] = (paths, var_in)
+
+    if time_index is None or len(time_index) == 0:
+        raise RuntimeError("No time data found in Micromet outputs")
+
+    # --- helper: read CRS from CF spatial_ref ---
+    def _get_da_crs_from_cf(ds):
+        # Expect: ds["spatial_ref"].attrs["crs_wkt"] exists (your chunked writer does this)
+        if "spatial_ref" in ds.variables:
+            wkt = ds["spatial_ref"].attrs.get("crs_wkt", None) or ds["spatial_ref"].attrs.get("spatial_ref", None)
+            if wkt:
+                return CRS.from_wkt(wkt)
+        # fallback: dataset attribute
+        wkt = ds.attrs.get("crs_wkt", None)
+        if wkt:
+            return CRS.from_wkt(wkt)
+        return None
+
+    # --- helper: build affine from 1D x/y coordinate vectors (pixel-centered) ---
+    def _affine_from_xy_centers(x, y):
+        x = np.asarray(x)
+        y = np.asarray(y)
+        if x.size < 2 or y.size < 2:
+            raise ValueError("Need at least 2 x and 2 y coordinates to build affine transform.")
+        dx = float(x[1] - x[0])
+        dy = float(y[1] - y[0])  # often negative for north->south
+        return Affine.translation(float(x[0]) - dx / 2.0, float(y[0]) - dy / 2.0) * Affine.scale(dx, dy)
+
+    # --- helper: reproject one 2D field (Micromet grid) to S3M WGS84 grid ---
+    def _reproject_to_s3m_grid(src2d, src_transform_local, src_crs_local):
+        dst = np.full((dst_height, dst_width), np.nan, dtype=np.float32)
+        reproject(
+            source=src2d.astype(np.float32, copy=False),
+            destination=dst,
+            src_transform=src_transform_local,
+            src_crs=src_crs_local,
+            dst_transform=dst_transform,
+            dst_crs=dst_crs,
+            resampling=Resampling.nearest
+        )
+        # rasterio output is north->south; S3M wants south->north
+        dst = dst[::-1, :]
+        dst[np.isnan(dst)] = nodata_value
+        return dst
+
+    # Cache opened datasets per process (simple dict in worker scope)
+    # Note: each joblib process has its own memory space -> each process builds its own cache.
+    def _write_one_s3m_file(i, t):
+        date_str = pd.to_datetime(t).strftime("%Y%m%d%H%M")
+        filename_nc = os.path.join(output_dir, f"MeteoData_{date_str}.nc")
+        filename_gz = filename_nc + ".gz"
+
+        if os.path.exists(filename_gz):
+            return
+
+        data_vars = {}
+
+        # For each S3M variable, open the corresponding Micromet dataset and reproject
+        for var_name in ["Rain", "AirTemperature", "IncRadiation", "RelHumidity"]:
+            if var_name in var_paths:
+                paths, var_in = var_paths[var_name]
+
+                # Open multi-file dataset (lazy); read only one timestep -> memory OK
+                ds_in = xr.open_mfdataset(paths, combine="by_coords", chunks={"time": 1, "valid_time": 1})
+
+                # Identify time coordinate name used in this dataset
+                if "time" in ds_in.coords:
+                    tcoord = "time"
+                elif "valid_time" in ds_in.coords:
+                    tcoord = "valid_time"
+                else:
+                    ds_in.close()
+                    raise RuntimeError(f"No time coordinate in dataset for {var_name}")
+
+                da_in = ds_in[var_in]
+
+                # Align timestep by index (assumes all vars share the same time_index ordering)
+                # If some variables are missing times, you'd want .sel({tcoord: t}) instead.
+                da2d = da_in.isel({tcoord: i})
+
+                # Ensure we have x/y coords
+                if "x" not in da2d.coords or "y" not in da2d.coords:
+                    ds_in.close()
+                    raise RuntimeError(f"{var_name} missing x/y coordinates; cannot reproject.")
+
+                # Source CRS and transform from CF metadata + coordinates
+                src_crs_local = _get_da_crs_from_cf(ds_in)
+                if src_crs_local is None:
+                    ds_in.close()
+                    raise RuntimeError(f"Could not determine CRS for {var_name} from CF 'spatial_ref'.")
+
+                src_transform_local = _affine_from_xy_centers(da2d["x"].values, da2d["y"].values)
+
+                # Load values (2D) and reproject to S3M grid
+                src2d = da2d.values
+                data = _reproject_to_s3m_grid(src2d, src_transform_local, src_crs_local)
+
+                ds_in.close()
+
+                # Unit conversion
+                if var_name == "AirTemperature":
+                    # K -> °C, preserving nodata
+                    mask = data != nodata_value
+                    data[mask] = data[mask] - 273.15
+
+                # NOTE: you said precipitation is already correct (mm) -> no scaling applied.
+
+            else:
+                data = np.full((dst_height, dst_width), nodata_value, dtype=np.float32)
+
+            data_vars[var_name] = xr.DataArray(
+                data.astype(np.float32, copy=False),
+                dims=("y", "x"),
+                coords={"x": x_coords, "y": y_coords},
+                attrs={"coordinates": "longitude latitude"},
+            )
+
+        # Static fields (already south->north and matching coords)
+        data_vars["terrain"] = xr.DataArray(
+            terrain.astype(np.float32, copy=False),
+            dims=("y", "x"),
+            coords={"x": x_coords, "y": y_coords},
+            attrs={"coordinates": "longitude latitude"},
+        )
+        data_vars["longitude"] = xr.DataArray(
+            lon2d.astype(np.float32, copy=False),
+            dims=("y", "x"),
+            coords={"x": x_coords, "y": y_coords},
+        )
+        data_vars["latitude"] = xr.DataArray(
+            lat2d.astype(np.float32, copy=False),
+            dims=("y", "x"),
+            coords={"x": x_coords, "y": y_coords},
+        )
+
+        ds_out = xr.Dataset(data_vars)
+
+        # S3M-style metadata
+        ds_out.attrs.update({
+            "ncols": int(dst_width),
+            "nrows": int(dst_height),
+            "nodata_value": float(nodata_value),
+            "xllcorner": float(xllcorner),
+            "yllcorner": float(yllcorner),
+            "cellsize": float(cellsize),
+            "crs": "EPSG:4326",
+        })
+
+        # Write NetCDF then gzip
+        ds_out.to_netcdf(filename_nc)
+
+        with open(filename_nc, "rb") as f_in, gzip.open(filename_gz, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+        os.remove(filename_nc)
+
+    # --- Run over timesteps ---
+    Parallel(n_jobs=n_jobs)(
+        delayed(_write_one_s3m_file)(i, t) for i, t in enumerate(time_index)
+    )
+
+    print(f"\nS3M .nc.gz export complete: {output_dir}")
+
+
 
 
 
