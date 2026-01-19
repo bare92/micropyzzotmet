@@ -28,18 +28,30 @@ from tempfile import TemporaryDirectory
 
 def parse_yes_no_flag(value, var_name=""):
     """
-    Converts 'y'/'n' string flags to boolean.
-    
-    Parameters:
-        value (str): The input string, expected to be 'y' or 'n'.
-        var_name (str): Optional variable name for clearer error messages.
-        
-    Returns:
-        bool: True if 'y', False if 'n'.
-        
-    Raises:
-        ValueError: If value is not 'y' or 'n'.
-    """
+  Convert a 'y' / 'n' string flag into a boolean value.
+
+  This helper function is intended for parsing configuration files
+  (e.g. JSON or command-line inputs) where yes/no options are provided
+  as single-character strings.
+
+  Parameters
+  ----------
+  value : str
+      Input string flag. Must be either ``'y'`` or ``'n'``.
+  var_name : str, optional
+      Name of the variable being parsed. Used only to improve
+      error-message clarity.
+
+  Returns
+  -------
+  bool
+      ``True`` if value is ``'y'``, ``False`` if value is ``'n'``.
+
+  Raises
+  ------
+  ValueError
+      If the input value is not ``'y'`` or ``'n'``.
+  """
     if value == "y":
         return True
     elif value == "n":
@@ -49,6 +61,28 @@ def parse_yes_no_flag(value, var_name=""):
 
 
 def create_full_micromet_folder_structure(base_path="."):
+    
+    """
+Create the standard Micromet project folder structure.
+
+The function creates the following directories (if they do not exist):
+
+- ``inputs/climate`` : climate forcing data
+- ``inputs/dem``     : DEM and derived terrain layers
+- ``outputs``        : Micromet / downscaling outputs
+
+Parameters
+----------
+base_path : str or pathlib.Path, default "."
+    Root directory where the Micromet folder structure
+    will be created.
+
+Returns
+-------
+None
+    Creates directories on disk.
+"""
+
     folders = [
         "inputs/climate",
         "inputs/dem",
@@ -63,11 +97,42 @@ def create_full_micromet_folder_structure(base_path="."):
 
 
 def load_config(config_path):
+    """
+    Load a JSON configuration file.
+
+    Parameters
+    ----------
+    config_path : str or pathlib.Path
+        Path to the JSON configuration file.
+
+    Returns
+    -------
+    dict
+        Dictionary containing the parsed configuration parameters.
+    """
     with open(config_path, 'r') as f:
         config = json.load(f)
     return config
 
 def load_dem(dem_path):
+    """
+    Load a DEM raster from disk.
+
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to the DEM GeoTIFF.
+
+    Returns
+    -------
+    dem_data : numpy.ndarray
+        DEM elevation values (2D array).
+    dem_meta : dict
+        Raster metadata (driver, dtype, CRS, etc.).
+    dem_transform : affine.Affine
+        Affine transform describing the DEM georeferencing.
+    """
+
     with rasterio.open(dem_path) as src:
         dem_data = src.read(1)
         dem_meta = src.meta
@@ -77,9 +142,47 @@ def load_dem(dem_path):
 
 
 def lon_to_360(lon):
+    """
+    Convert longitude from [-180, 180] range to [0, 360] range.
+
+    Parameters
+    ----------
+    lon : float or array-like
+        Longitude value(s) in degrees.
+
+    Returns
+    -------
+    float or array-like
+        Longitude value(s) wrapped to the [0, 360] domain.
+    """
+
     return lon % 360
 
 def check_extent_alignment(min_val, max_val, res):
+    """
+    Check whether a spatial extent is aligned with a given resolution.
+
+    This function verifies that ``(max_val - min_val)`` is an integer
+    multiple of the grid resolution.
+
+    Parameters
+    ----------
+    min_val : float
+        Minimum coordinate value (e.g. xmin or ymin).
+    max_val : float
+        Maximum coordinate value (e.g. xmax or ymax).
+    res : float
+        Target grid resolution.
+
+    Returns
+    -------
+    aligned : bool
+        True if the extent is aligned with the resolution.
+    suggested_max : float or None
+        Suggested adjusted maximum value if misaligned,
+        otherwise ``None``.
+    """
+
     size = max_val - min_val
     steps = size / res
     if not np.isclose(steps, round(steps)):
@@ -88,6 +191,32 @@ def check_extent_alignment(min_val, max_val, res):
     return True, None
 
 def create_reference_grid(extent, resolution, crs):
+    """
+    Create a reference xarray grid for reprojection and resampling.
+
+    The grid is defined by a bounding box, resolution, and CRS, and
+    contains a dummy data array filled with NaNs. It is primarily used
+    as a target grid for ``rio.reproject_match``.
+
+    Parameters
+    ----------
+    extent : tuple
+        Spatial extent defined as (xmin, ymin, xmax, ymax).
+    resolution : float
+        Grid resolution (same units as CRS).
+    crs : str or rasterio.crs.CRS
+        Coordinate reference system.
+
+    Returns
+    -------
+    da : xarray.DataArray
+        Dummy DataArray with spatial coordinates and CRS.
+    width : int
+        Number of grid columns.
+    height : int
+        Number of grid rows.
+    """
+
     xmin, ymin, xmax, ymax = extent
     width = int(round((xmax - xmin) / resolution))
     height = int(round((ymax - ymin) / resolution))
@@ -110,6 +239,32 @@ def create_reference_grid(extent, resolution, crs):
     return da, width, height
 
 def download_and_save_dem_from_config(config):
+    """
+    Download, reproject, and save a DEM based on configuration settings.
+
+    If a DEM file is already specified in the configuration, that path
+    is returned directly. Otherwise, the function downloads Copernicus
+    GLO-30 DEM data, subsets it to the requested extent, reprojects it
+    to the target CRS and resolution, and saves it to disk.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration dictionary containing DEM download parameters
+        (extent, CRS, resolution, output path, authentication token).
+
+    Returns
+    -------
+    str
+        Path to the DEM file on disk.
+
+    Raises
+    ------
+    ValueError
+        If the selected spatial extent contains no DEM data or
+        if the extent is not aligned with the requested resolution.
+    """
+
     if config["dem_file"] is not None:
         return config["dem_file"]
 
@@ -208,6 +363,25 @@ def download_and_save_dem_from_config(config):
 
 
 def load_era_data(era_path, variables, start_date=None, end_date=None):
+    """
+    Load ERA5 / ERA5-Land data from NetCDF.
+
+    Parameters
+    ----------
+    era_path : str or pathlib.Path
+        Path to the ERA NetCDF file.
+    variables : list of str
+        Names of variables to extract from the dataset.
+    start_date, end_date : str or datetime-like, optional
+        Time range selection. If provided, data are sliced in time.
+
+    Returns
+    -------
+    xarray.Dataset
+        Subset of the ERA dataset containing selected variables
+        and time range.
+    """
+
     era_ds = xr.open_dataset(era_path)
 
     # Optionally select variables and time range
@@ -220,6 +394,29 @@ def load_era_data(era_path, variables, start_date=None, end_date=None):
 
 
 def compute_slope_aspect(dem_path, working_directory):
+    """
+    Compute slope and aspect rasters from a DEM.
+
+    If the DEM is in geographic coordinates (EPSG:4326), it is first
+    reprojected to an appropriate UTM zone before computing slope and
+    aspect using GDAL. Results are then reprojected back to the original
+    DEM grid.
+
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to the DEM GeoTIFF.
+    working_directory : str or pathlib.Path
+        Project working directory where output rasters will be saved.
+
+    Returns
+    -------
+    slope_path : str
+        Path to the slope GeoTIFF.
+    aspect_path : str
+        Path to the aspect GeoTIFF.
+    """
+
     output_dir = os.path.join(working_directory, 'inputs', 'dem')
     os.makedirs(output_dir, exist_ok=True)
     slope_path = os.path.join(output_dir, 'slope.tif')
@@ -289,6 +486,33 @@ from tempfile import TemporaryDirectory
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 
 def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodata=None):
+    """
+    Compute a normalized topographic curvature index from a DEM.
+
+    Curvature is estimated using a combination of diagonal and
+    cross-shaped finite-difference kernels and normalized to
+    approximately [-0.5, 0.5].
+
+    If the DEM is in geographic coordinates, the computation is
+    performed in a projected CRS (UTM) and reprojected back.
+
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to the DEM GeoTIFF.
+    working_directory : str or pathlib.Path
+        Project working directory.
+    L : float, optional
+        Characteristic length scale (currently informational).
+    dem_nodata : float or int, optional
+        No-data value in the DEM.
+
+    Returns
+    -------
+    str
+        Path to the curvature GeoTIFF.
+    """
+
     output_dir = os.path.join(working_directory, 'inputs', 'dem')
     os.makedirs(output_dir, exist_ok=True)
     curvature_path = os.path.join(output_dir, 'curvature.tif')
@@ -390,54 +614,6 @@ def compute_topographic_curvature(dem_path, working_directory, L=1000, dem_nodat
     return curvature_path
 
 
-def write_downscaled_to_netcdf(
-    variables_dict,
-    time_list,
-    dem_shape,
-    dem_transform,
-    dem_crs,
-    out_nc
-):
-    """
-    Save multiple downscaled variables to NetCDF with spatial referencing.
-
-    Parameters:
-        variables_dict: dict of {var_name: (data_list, units, description)}
-        time_list: list of datetime objects
-        dem_shape: shape of the DEM used as reference
-        dem_transform: Affine transform of the DEM
-        dem_crs: CRS of the DEM
-        out_nc: full path to the output NetCDF file
-    """
-
-    height, width = dem_shape
-    x_coords = np.arange(width) * dem_transform.a + dem_transform.c + dem_transform.a / 2
-    y_coords = np.arange(height) * dem_transform.e + dem_transform.f + dem_transform.e / 2
-
-    dataset_vars = {}
-
-    for var_name, (data_list, units, description) in variables_dict.items():
-        data_stack = np.concatenate(data_list, axis=0)
-
-        da = xr.DataArray(
-            data_stack,
-            dims=["time", "y", "x"],
-            coords={"time": time_list, "y": y_coords, "x": x_coords},
-            attrs={"units": units, "description": description}
-        )
-
-        dataset_vars[var_name] = da
-
-    ds_out = xr.Dataset(dataset_vars)
-    ds_out = ds_out.rio.write_transform(dem_transform)
-    ds_out = ds_out.rio.write_crs(dem_crs)
-
-    os.makedirs(os.path.dirname(out_nc), exist_ok=True)
-    ds_out.to_netcdf(out_nc)
-
-    print(f"\nSaved NetCDF: {out_nc}")
-
-
 
 def write_downscaled_to_netcdf(
     variables_dict,
@@ -450,9 +626,38 @@ def write_downscaled_to_netcdf(
     mode="w"
 ):
     """
-    Save variables to NetCDF with spatial referencing (CF grid mapping),
-    int16 dtype, no compression, and nodata via _FillValue in encoding.
+    Write multiple downscaled variables to a CF-compliant NetCDF file.
+
+    This utility function is used by the downscaling routines to export
+    gridded variables on the DEM grid, including full spatial
+    referencing compatible with GDAL and QGIS.
+
+    Parameters
+    ----------
+    variables_dict : dict
+        Dictionary of variables in the form:
+        ``{var_name: (data_list, units, description)}``.
+    time_list : list of datetime-like
+        Time coordinate values.
+    dem_shape : tuple
+        Shape of the DEM grid (rows, columns).
+    dem_transform : affine.Affine
+        DEM affine transform.
+    dem_crs : rasterio.crs.CRS
+        DEM coordinate reference system.
+    out_nc : str or pathlib.Path
+        Output NetCDF file path.
+    nodata_value : int, default -9999
+        No-data value written to the NetCDF.
+    mode : {"w", "a"}, default "w"
+        NetCDF write mode.
+
+    Returns
+    -------
+    None
+        Writes a NetCDF file to disk.
     """
+
 
     height, width = dem_shape
     x_coords = np.arange(width) * dem_transform.a + dem_transform.c + dem_transform.a / 2
@@ -702,6 +907,68 @@ def convert_micromet_to_s3m_inputs(
     nodata_value: float = -9999.0,
     n_jobs: int = 4
 ):
+    """
+    Convert Micromet downscaled outputs into S3M forcing files (one NetCDF per timestep, gzipped).
+
+    This utility prepares meteorological forcing files for the S3M Fortran model by:
+      1. Reprojecting the DEM to WGS84 (EPSG:4326) on a regular grid.
+      2. Building an S3M-oriented grid where:
+         - x increases eastward,
+         - y increases northward, and
+         - row 0 corresponds to the *southernmost* row (south -> north ordering).
+      3. Reading Micromet output NetCDFs for each variable (possibly split across multiple files),
+         extracting a single 2D slice per timestep.
+      4. Reprojecting each 2D field from the Micromet grid/CRS to the S3M WGS84 grid using
+         nearest-neighbor resampling.
+      5. Writing one NetCDF per timestep with S3M-required variables:
+         ``Rain``, ``AirTemperature``, ``IncRadiation``, ``RelHumidity``, plus static fields
+         ``terrain``, ``longitude``, ``latitude``.
+      6. Compressing each NetCDF to ``.nc.gz`` and removing the uncompressed file.
+
+    The function expects Micromet NetCDFs to be CF-like and include CRS metadata via a
+    ``spatial_ref`` variable with a ``crs_wkt`` (or ``spatial_ref``) attribute. Pixel georeferencing
+    for Micromet inputs is reconstructed from 1D ``x`` and ``y`` coordinate vectors interpreted as
+    *pixel centers*.
+
+    Notes
+    -----
+    - Output grid is EPSG:4326 with S3M convention (south->north). Because raster reprojection
+      typically produces arrays ordered north->south, the function flips the reprojected arrays
+      vertically to match S3M.
+    - Air temperature is converted from Kelvin to degrees Celsius (K -> °C); other variables are
+      passed through as-is (no unit scaling is applied for precipitation in this implementation).
+    - Time coordination assumes that all variables share the same timestep ordering; if variables
+      may have missing timesteps, selecting by timestamp (``.sel``) would be safer than ``isel``.
+
+    Parameters
+    ----------
+    micromet_output_dir : str
+        Root directory containing Micromet outputs in subfolders (e.g., ``Temperature/``, ``SW/``,
+        ``RH/``, ``P/``), each containing one or more NetCDF files (typically monthly).
+    output_dir : str
+        Output directory where S3M forcing files will be written as ``MeteoData_YYYYMMDDHHMM.nc.gz``.
+    dem_path : str
+        Path to the DEM GeoTIFF used to define the target domain extent and resolution.
+        The DEM is reprojected to EPSG:4326 before writing S3M fields.
+    nodata_value : float, default -9999.0
+        No-data value used to fill missing pixels in output arrays.
+    n_jobs : int, default 4
+        Number of parallel workers for timestep export (joblib multiprocessing).
+
+    Returns
+    -------
+    None
+        Writes one gzipped NetCDF per timestep to ``output_dir``.
+
+    Raises
+    ------
+    RuntimeError
+        If no Micromet time coordinate is found, if a required x/y coordinate is missing,
+        or if CRS information cannot be recovered from CF ``spatial_ref`` metadata.
+    ValueError
+        If coordinate vectors are too short to infer an affine transform.
+    """
+
     import os
     import glob
     import gzip

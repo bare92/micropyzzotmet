@@ -37,6 +37,65 @@ def downscale_Temperature(
     dem_nodata=None,
     time_chunk=24
 ):
+    
+    """
+    Downscale ERA5/ERA5-Land 2 m air temperature (``t2m``) to a high-resolution DEM grid.
+    
+    The method:
+      1. Opens the DEM raster and uses its grid/CRS/transform as target.
+      2. Opens the climate NetCDF and reads ``t2m`` on the ERA grid.
+      3. Reads geopotential (``./auxiliary_data/geopotential3.nc``, variable ``z``) to
+         estimate ERA-grid elevations (meters).
+      4. Applies a vertical lapse-rate correction:
+         - **Fixed monthly lapse rates** (MicroMet defaults) OR
+         - **User-provided** monthly lapse rates OR
+         - **Calibrated** lapse rate (linear regression of T vs elevation per timestep).
+      5. Reprojects the "sea-level" temperature field to the DEM grid (bilinear).
+      6. Applies the lapse-rate correction using DEM elevations.
+    
+    Output is written as a **monthly** NetCDF file named:
+    ``temperature_downscaled_YYYY_MM.nc`` in ``output_folder_T``.
+    
+    Notes
+    -----
+    - Assumes the climate file contains longitude/latitude coordinates named
+      ``longitude`` and ``latitude``, and time is either ``time`` or ``valid_time``.
+    - Lapse rates are in K/m internally. If you pass ``custom_lapse_rate``,
+      it must be 12 values in K/km (it will be divided by 1000).
+    - Buffered writing is used to reduce memory usage.
+    
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to DEM GeoTIFF.
+    curr_climate_file : str or pathlib.Path
+        Path to monthly climate NetCDF containing ``t2m``.
+    output_folder_T : str or pathlib.Path
+        Output directory where the monthly NetCDF will be saved.
+    custom_lapse_rate : array-like of length 12, optional
+        Monthly lapse rates in **K/km** (January..December). Mutually exclusive with
+        ``calibrate_lapse_rate=True``.
+    calibrate_lapse_rate : bool, default False
+        If True, estimate lapse rate per timestep by linear regression of ERA-grid
+        temperature vs ERA-grid elevation (from geopotential).
+    dem_nodata : float or int, optional
+        Value representing nodata in the DEM. If None, NaNs are used.
+    write_buffer_steps : int, default 24
+        Number of timesteps to buffer before writing to disk. Use 24 for hourly data.
+    
+    Returns
+    -------
+    None
+        Writes a NetCDF file to disk. If the output file already exists, the function
+        prints a message and returns early.
+    
+    Raises
+    ------
+    ValueError
+        If required variables are missing or if incompatible options are provided.
+        """
+
+
     geopotential_path = './auxiliary_data/geopotential3.nc'
 
     lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
@@ -222,154 +281,7 @@ def downscale_Temperature(
     pbar.close()
     root.close()
     print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
-    
-def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1370.0,
-                          custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
-    import numpy as np
-    import xarray as xr
-    import os
-    import pandas as pd
-    import rasterio
-    from rasterio.warp import reproject, Resampling
-    from rasterio.transform import from_origin
-    from scipy.stats import linregress
-    from glob import glob as glob_glob
-
-    a, b, c = 611.21, 17.502, 240.97
-    geopotential_path = './auxiliary_data/geopotential3.nc'
-
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
-    slope_path = glob_glob(os.path.join(project_root, 'inputs', 'dem', '*slope*.tif'))[0]
-    aspect_path = glob_glob(os.path.join(project_root, 'inputs', 'dem', '*aspect*.tif'))[0]
-    os.makedirs(output_folder_SW, exist_ok=True)
-
-    with rasterio.open(dem_path) as dem_src, \
-         rasterio.open(slope_path) as slope_src, \
-         rasterio.open(aspect_path) as aspect_src:
-
-        dem = dem_src.read(1)
-        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
-        dem_transform = dem_src.transform
-        dem_crs = dem_src.crs
-        dem_shape = dem.shape
-
-        slope_rad = np.radians(slope_src.read(1))
-        aspect_raw = aspect_src.read(1)
-        aspect_rad = (np.radians(aspect_raw) + np.pi) % (2 * np.pi)
-
-    lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
-    lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
-    vp_coeff_nohem = np.array([0.41, 0.42, 0.40, 0.39, 0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40]) / 1000.0
-    vp_coeff_sohem = np.array([0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40, 0.41, 0.42, 0.40, 0.39]) / 1000.0
-
-    ds = xr.open_dataset(curr_climate_file)
-    temp, dew = ds["t2m"], ds["d2m"]
-    if "valid_time" in ds.variables:
-        time = ds["valid_time"].values
-    elif "time" in ds.variables:
-        time = ds["time"].values
-    else:
-        raise ValueError("Dataset does not contain 'time' or 'valid_time' variables.")
-
-    lon, lat = ds.longitude.values, ds.latitude.values
-    lon2d, lat2d = np.meshgrid(lon, lat)
-    time_pd = pd.to_datetime(time)
-    is_daily_data = len(time_pd) == 1 or (len(time_pd) > 1 and (time_pd[1] - time_pd[0]) >= pd.Timedelta("23h"))
-    center_lat = (lat[0] + lat[-1]) / 2
-    lat_mean_rad = np.radians(center_lat)
-
-    if custom_lapse_rate and calibrate_lapse_rate:
-        raise ValueError("Cannot use both custom_lapse_rate and calibrate_lapse_rate=True.")
-    lapse_rate_all = (np.array(custom_lapse_rate) / 1000.0 if custom_lapse_rate else
-                      lapse_rate_sohem if center_lat < 0 else lapse_rate_nohem)
-    vp_coeff_all = vp_coeff_sohem if center_lat < 0 else vp_coeff_nohem
-
-    geop = xr.open_dataset(geopotential_path)
-    z0 = geop.z.interp(latitude=("y", lat2d[:, 0]), longitude=("x", lon2d[0, :]), method="nearest") / 9.81
-    z0 = z0.values.astype(np.float32)
-
-    dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
-    era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
-    era_crs = rasterio.crs.CRS.from_epsg(4326)
-
-    month_tag = time_pd[0].strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_SW, f"shortwave_downscaled_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
-        return
-
-    Qsi_all = []
-    time_list = []
-
-    for i, date in enumerate(time_pd):
-        month_index = date.month - 1
-
-        if calibrate_lapse_rate:
-            T_vals = temp.isel(valid_time=i).values.flatten() if "valid_time" in temp.dims else temp.isel(time=i).values.flatten()
-            Z_vals = z0.flatten()
-            valid = ~np.isnan(T_vals) & ~np.isnan(Z_vals)
-            lapse_rate = -linregress(Z_vals[valid], T_vals[valid]).slope if np.sum(valid) >= 5 else lapse_rate_all[month_index]
-        else:
-            lapse_rate = lapse_rate_all[month_index]
-
-        vp_coeff = vp_coeff_all[month_index]
-        d_t_lapse_rate = vp_coeff * c / b
-
-        t_raw = temp.isel(valid_time=i).values if "valid_time" in temp.dims else temp.isel(time=i).values
-        d_raw = dew.isel(valid_time=i).values if "valid_time" in dew.dims else dew.isel(time=i).values
-
-        t_0 = t_raw - lapse_rate * (0 - z0)
-        d_0 = d_raw - d_t_lapse_rate * (0 - z0)
-        T_700 = t_0 - lapse_rate * (z_700 - z0) - 273.15
-        D_700 = d_0 - d_t_lapse_rate * (z_700 - z0) - 273.15
-
-        es = a * np.exp((b * T_700) / (T_700 + c))
-        e = a * np.exp((b * D_700) / (D_700 + c))
-        RH_700 = np.clip(100 * e / es, 0, 100)
-        cloud_frac = np.clip(0.832 * np.exp((RH_700 - 100) / 41.6), 0, 1)
-
-        cloud_frac_resampled = np.empty_like(dem, dtype=np.float32)
-        reproject(cloud_frac, cloud_frac_resampled,
-                  src_transform=era_transform, src_crs=era_crs,
-                  dst_transform=dem_transform, dst_crs=dem_crs,
-                  resampling=Resampling.bilinear)
-
-        if is_daily_data:
-            hours = np.linspace(0.5, 23.5, 24)
-            omega = np.pi * (hours - 12) / 12
-            delta = -23.44 * np.pi / 180 * np.cos(2 * np.pi * (date.dayofyear + 10) / 365)
-            cosZ = np.clip(np.sin(lat_mean_rad) * np.sin(delta) + np.cos(lat_mean_rad) * np.cos(delta) * np.cos(omega), 0, 1)
-            phi = np.arcsin(np.clip(np.cos(delta) * np.sin(omega) / np.maximum(np.sin(np.arccos(cosZ)), 1e-6), -1, 1))
-            cosZ_exp = cosZ[:, None, None]
-            phi_exp = phi[:, None, None]
-            slope_exp = slope_rad[None, :, :]
-            aspect_exp = aspect_rad[None, :, :]
-            cloud_exp = cloud_frac_resampled[None, :, :]
-
-            cos_i = np.clip(
-                np.cos(slope_exp) * cosZ_exp +
-                np.sin(slope_exp) * np.sqrt(1 - cosZ_exp ** 2) * np.cos(phi_exp - aspect_exp),
-                0, 1)
-
-            trans_dir = (0.6 + 0.2 * cosZ_exp) * (1.0 - cloud_exp)
-            trans_dif = (0.3 + 0.1 * cosZ_exp) * cloud_exp
-            Qsi_24 = S0 * (trans_dir * cos_i + trans_dif * cosZ_exp)
-            Qsi_daily = np.sum(Qsi_24, axis=0) * 3600 / 86400
-            Qsi_daily[dem_mask] = np.nan
-            Qsi_all.append(Qsi_daily[np.newaxis, ...])
-
-        time_list.append(date)
-
-    
-    write_downscaled_to_netcdf(
-        variables_dict={"SW": (Qsi_all, "W m-2", "Downscaled incoming shortwave radiation")},
-        time_list=time_list,
-        dem_shape=dem_shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
-
+  
 def downscale_SW_custom(
     dem_path,
     curr_climate_file,
@@ -377,6 +289,60 @@ def downscale_SW_custom(
     dem_nodata=None,
     time_chunk=24
 ):
+    
+    """
+    Downscale incoming shortwave radiation using a pvlib-based solar geometry approach.
+
+    This version uses ERA5/ERA5-Land surface shortwave radiation (``ssrd``) and corrects it
+    for terrain slope/aspect using pvlib solar position and angle-of-incidence (AOI).
+
+    The workflow:
+      1. Read DEM + slope + aspect rasters (same grid/CRS/transform as output).
+      2. Open the climate NetCDF and read ``ssrd`` (time or valid_time).
+      3. Reproject ``ssrd`` from ERA grid to DEM grid (bilinear).
+      4. Compute solar position with pvlib at the domain center location.
+      5. Compute AOI using slope/aspect and solar zenith/azimuth.
+      6. Apply a cosine correction: ``SW = ssrd_resampled * (cos_i / cosZ)``.
+      7. Write a CF-compliant NetCDF (including CRS metadata for QGIS).
+
+    Output is written as a **monthly** NetCDF file named:
+    ``shortwave_downscaled_YYYY_MM.nc`` in ``output_folder_SW``.
+
+    Notes
+    -----
+    - Requires slope and aspect rasters in ``<project_root>/inputs/dem/`` with filenames containing
+      ``slope`` and ``aspect``.
+    - If the input is daily, the function evaluates solar geometry at an estimated UTC solar noon
+      based on longitude (same behavior as your current implementation).
+    - CRS metadata is written to ensure QGIS/GDAL correctly recognize georeferencing.
+
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to DEM GeoTIFF.
+    curr_climate_file : str or pathlib.Path
+        Path to monthly climate NetCDF containing ``ssrd``.
+    output_folder_SW : str or pathlib.Path
+        Output directory where the monthly NetCDF will be saved.
+    dem_nodata : float or int, optional
+        Value representing nodata in the DEM. If None, NaNs are used.
+    time_chunk : int, default 24
+        Number of timesteps to process/write per block.
+
+    Returns
+    -------
+    None
+        Writes a NetCDF file to disk and returns.
+
+    Raises
+    ------
+    ValueError
+        If required variables are missing.
+    IndexError
+        If slope/aspect rasters cannot be found in the expected folder.
+    """
+
+    
     import numpy as np
     import xarray as xr
     import os
@@ -617,6 +583,61 @@ def downscale_RH(
     dem_nodata=None,
     time_chunk=24
 ):
+    
+    """
+    Downscale relative humidity to a high-resolution DEM grid using t2m and d2m.
+
+    Relative humidity is computed using the Magnus formulation from downscaled
+    air temperature and dew point temperature.
+
+    The workflow:
+      1. Read DEM raster to define target grid/CRS/transform.
+      2. Open climate NetCDF and read ``t2m`` and ``d2m``.
+      3. Read geopotential (``./auxiliary_data/geopotential3.nc``) to estimate ERA-grid elevation.
+      4. Apply lapse-rate corrections:
+         - temperature lapse rate (monthly default or user-provided), and
+         - dew-point lapse rate derived from empirical monthly vapor-pressure coefficients.
+      5. Reproject sea-level temperature/dewpoint fields to DEM grid (bilinear).
+      6. Compute RH (%) on the DEM grid and write output in chunks.
+
+    Output is written as a **monthly** NetCDF file named:
+    ``relative_humidity_YYYY_MM.nc`` in ``output_folder_RH``.
+
+    Notes
+    -----
+    - Uses monthly default lapse rates for temperature unless ``custom_lapse_rate`` is provided.
+    - If ``calibrate_lapse_rate=True``, lapse rate is estimated per timestep by regression of
+      ERA-grid temperature vs ERA-grid elevation.
+    - Output NetCDF includes CF grid mapping information for QGIS/GDAL.
+
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to DEM GeoTIFF.
+    curr_climate_file : str or pathlib.Path
+        Path to monthly climate NetCDF containing ``t2m`` and ``d2m``.
+    output_folder_RH : str or pathlib.Path
+        Output directory where the monthly NetCDF will be saved.
+    custom_lapse_rate : array-like of length 12, optional
+        Monthly temperature lapse rates in K/km. Mutually exclusive with ``calibrate_lapse_rate=True``.
+    calibrate_lapse_rate : bool, default False
+        If True, estimate lapse rate dynamically from ERA-grid temperature vs elevation.
+    dem_nodata : float or int, optional
+        Value representing nodata in the DEM. If None, NaNs are used.
+    time_chunk : int, default 24
+        Number of timesteps to process/write per block.
+
+    Returns
+    -------
+    None
+        Writes a NetCDF file to disk and returns.
+
+    Raises
+    ------
+    ValueError
+        If required variables are missing or if incompatible options are provided.
+    """
+
     import os
     import numpy as np
     import xarray as xr
@@ -836,409 +857,7 @@ def downscale_RH(
     print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
 
 
-def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom_gamma=None, dem_nodata=None):
-    
 
-    geopotential_path = './auxiliary_data/geopotential3.nc'
-    os.makedirs(output_folder_P, exist_ok=True)
-
-    gamma_nohem = np.array([0.35, 0.35, 0.35, 0.30, 0.25, 0.20, 0.20, 0.20, 0.20, 0.25, 0.30, 0.35]) / 1000.0
-    gamma_sohem = np.array([0.25, 0.20, 0.20, 0.20, 0.20, 0.25, 0.30, 0.35, 0.35, 0.35, 0.30, 0.25]) / 1000.0
-
-    with rasterio.open(dem_path) as dem_src:
-        dem = dem_src.read(1)
-        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
-        dem_meta = dem_src.meta.copy()
-        dem_crs = dem_src.crs
-        dem_transform = dem_src.transform
-        ny, nx = dem.shape
-        x_coords = np.arange(nx) * dem_transform.a + dem_transform.c
-        y_coords = np.arange(ny) * dem_transform.e + dem_transform.f
-
-    ds = xr.open_dataset(curr_climate_file)
-    precip = ds["tp"] if "tp" in ds else ds["precip"]
-    time = ds.valid_time.values if "valid_time" in ds else ds.time.values
-    lon, lat = ds.longitude.values, ds.latitude.values
-    lon2d, lat2d = np.meshgrid(lon, lat)
-    
-    month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_P, f"precipitation_{month_tag}.nc")
-    
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
-        return
-
-    center_lat = (lat[0] + lat[-1]) / 2
-    gamma_all = np.array(custom_gamma) / 1000.0 if custom_gamma else (gamma_sohem if center_lat < 0 else gamma_nohem)
-
-    geop = xr.open_dataset(geopotential_path)
-    z0 = np.zeros_like(lat2d, dtype=np.float32)
-    for i in range(lat2d.shape[0]):
-        for j in range(lat2d.shape[1]):
-            try:
-                Z = geop.z.sel(latitude=lat2d[i, j], longitude=lon2d[i, j], method="nearest", tolerance=0.5)
-                z0[i, j] = Z.values.item() / 9.81
-            except:
-                z0[i, j] = np.nan
-
-    dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
-    era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
-    era_crs = CRS.from_epsg(4326)
-
-    precip_all = []
-    time_list = []
-
-    for i, timestep in enumerate(tqdm(time, desc="Downscaling precipitation")):
-        date = pd.to_datetime(str(timestep))
-        month_index = date.month - 1
-        gamma = gamma_all[month_index]
-
-        precip_raw = precip.isel(valid_time=i).values if "valid_time" in precip.dims else precip.isel(time=i).values
-
-        p0_resampled = np.empty_like(dem, dtype=np.float32)
-        z0_resampled = np.empty_like(dem, dtype=np.float32)
-
-        reproject(precip_raw, p0_resampled,
-                  src_transform=era_transform, src_crs=era_crs,
-                  dst_transform=dem_transform, dst_crs=dem_crs,
-                  resampling=Resampling.bilinear)
-
-        reproject(z0, z0_resampled,
-                  src_transform=era_transform, src_crs=era_crs,
-                  dst_transform=dem_transform, dst_crs=dem_crs,
-                  resampling=Resampling.bilinear)
-
-        dz = dem - z0_resampled
-        precip_downscaled = p0_resampled * ((1 + gamma * dz) / (1 + np.abs(gamma * dz)))
-
-        precip_downscaled[dem_mask] = np.nan
-        precip_all.append(precip_downscaled[np.newaxis, ...])
-        time_list.append(date)
-
-
-
-    write_downscaled_to_netcdf(
-        variables_dict={
-            "P": (precip_all, "mm", "Downscaled precipitation")
-        },
-        time_list=time_list,
-        dem_shape=dem.shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
-
-
-def downscale_Precipitation(
-    dem_path,
-    curr_climate_file,
-    output_folder_P,
-    custom_gamma=None,
-    dem_nodata=None,
-    time_chunk=24
-):
-    import os
-    import numpy as np
-    import xarray as xr
-    import pandas as pd
-    import rasterio
-    from rasterio.warp import reproject, Resampling
-    from rasterio.transform import from_origin
-    from rasterio.crs import CRS
-    from tqdm import tqdm
-    import netCDF4 as nc
-
-    geopotential_path = './auxiliary_data/geopotential3.nc'
-    os.makedirs(output_folder_P, exist_ok=True)
-
-    gamma_nohem = np.array([0.35, 0.35, 0.35, 0.30, 0.25, 0.20, 0.20, 0.20, 0.20, 0.25, 0.30, 0.35]) / 1000.0
-    gamma_sohem = np.array([0.25, 0.20, 0.20, 0.20, 0.20, 0.25, 0.30, 0.35, 0.35, 0.35, 0.30, 0.25]) / 1000.0
-
-    # DEM
-    with rasterio.open(dem_path) as dem_src:
-        dem = dem_src.read(1).astype(np.float32)
-        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
-        dem_crs = dem_src.crs
-        dem_transform = dem_src.transform
-        height, width = dem.shape
-
-    # Open climate dataset chunked on time
-    ds = xr.open_dataset(curr_climate_file, chunks={"valid_time": 1, "time": 1})
-
-    precip = ds["tp"] if "tp" in ds else ds["precip"]
-    if "valid_time" in ds:
-        time = ds.valid_time.values
-        time_dim = "valid_time"
-    else:
-        time = ds.time.values
-        time_dim = "time"
-
-    lon, lat = ds.longitude.values, ds.latitude.values
-    lon2d, lat2d = np.meshgrid(lon, lat)
-
-    month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_P, f"precipitation_{month_tag}.nc")
-
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
-        return
-
-    center_lat = (lat[0] + lat[-1]) / 2
-    gamma_all = np.array(custom_gamma) / 1000.0 if custom_gamma else (gamma_sohem if center_lat < 0 else gamma_nohem)
-
-    # ERA grid transform
-    dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
-    era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
-    era_crs = CRS.from_epsg(4326)
-
-    # geopotential -> z0 on ERA grid (computed once like your original)
-    geop = xr.open_dataset(geopotential_path)
-    z0 = np.zeros_like(lat2d, dtype=np.float32)
-    for i in range(lat2d.shape[0]):
-        for j in range(lat2d.shape[1]):
-            try:
-                Z = geop.z.sel(latitude=lat2d[i, j], longitude=lon2d[i, j], method="nearest", tolerance=0.5)
-                z0[i, j] = Z.values.item() / 9.81
-            except:
-                z0[i, j] = np.nan
-
-    # Output coords from DEM
-    x_coords = np.arange(width) * dem_transform.a + dem_transform.c + dem_transform.a / 2
-    y_coords = np.arange(height) * dem_transform.e + dem_transform.f + dem_transform.e / 2
-
-    time_pd = pd.to_datetime(time)
-    ntime = len(time_pd)
-
-    # ---------- create output NetCDF ONCE (CF/GDAL/QGIS compliant CRS) ----------
-    os.makedirs(os.path.dirname(out_nc), exist_ok=True)
-    root = nc.Dataset(out_nc, "w", format="NETCDF4")
-
-    root.createDimension("time", ntime)
-    root.createDimension("y", height)
-    root.createDimension("x", width)
-
-    xv = root.createVariable("x", "f4", ("x",))
-    yv = root.createVariable("y", "f4", ("y",))
-    tv = root.createVariable("time", "f8", ("time",))
-
-    xv[:] = x_coords.astype(np.float32)
-    yv[:] = y_coords.astype(np.float32)
-
-    xv.standard_name = "projection_x_coordinate"
-    xv.units = "m"
-    xv.axis = "X"
-
-    yv.standard_name = "projection_y_coordinate"
-    yv.units = "m"
-    yv.axis = "Y"
-
-    tv.units = "seconds since 1970-01-01 00:00:00"
-    tv.calendar = "standard"
-
-    P_var = root.createVariable(
-        "P", "f4", ("time", "y", "x"),
-        fill_value=np.float32(np.nan),
-        chunksizes=(min(time_chunk, ntime), min(256, height), min(256, width))
-    )
-    P_var.units = "mm"
-    P_var.description = "Downscaled precipitation"
-
-    # CF grid mapping for QGIS
-    spatial_ref = root.createVariable("spatial_ref", "i4")
-    if dem_crs is not None:
-        try:
-            for k, v in dem_crs.to_cf().items():
-                spatial_ref.setncattr(k, v)
-        except Exception:
-            pass
-        wkt = dem_crs.to_wkt()
-    else:
-        wkt = ""
-
-    spatial_ref.setncattr("crs_wkt", wkt)
-    spatial_ref.setncattr("spatial_ref", wkt)
-
-    gt = f"{dem_transform.c} {dem_transform.a} {dem_transform.b} {dem_transform.f} {dem_transform.d} {dem_transform.e}"
-    spatial_ref.setncattr("GeoTransform", gt)
-
-    P_var.setncattr("grid_mapping", "spatial_ref")
-    root.setncattr("Conventions", "CF-1.8")
-
-    # Write full time coordinate once
-    tv[:] = nc.date2num([pd.Timestamp(t).to_pydatetime() for t in time_pd], units=tv.units, calendar=tv.calendar)
-
-    # ---------- compute + write in chunks ----------
-    pbar = tqdm(total=ntime, desc="Downscaling precipitation (chunked)")
-
-    start = 0
-    while start < ntime:
-        end = min(start + time_chunk, ntime)
-        B = end - start
-
-        p_chunk = np.empty((B, height, width), dtype=np.float32)
-
-        for kk, ti in enumerate(range(start, end)):
-            date = pd.Timestamp(time_pd[ti])
-            month_index = date.month - 1
-            gamma = gamma_all[month_index]
-
-            precip_raw = precip.isel({time_dim: ti}).values.astype(np.float32, copy=False)
-
-            p0_resampled = np.empty_like(dem, dtype=np.float32)
-            z0_resampled = np.empty_like(dem, dtype=np.float32)
-
-            reproject(
-                precip_raw, p0_resampled,
-                src_transform=era_transform, src_crs=era_crs,
-                dst_transform=dem_transform, dst_crs=dem_crs,
-                resampling=Resampling.bilinear
-            )
-
-            reproject(
-                z0, z0_resampled,
-                src_transform=era_transform, src_crs=era_crs,
-                dst_transform=dem_transform, dst_crs=dem_crs,
-                resampling=Resampling.bilinear
-            )
-
-            dz = dem - z0_resampled
-            precip_downscaled = p0_resampled * ((1 + gamma * dz) / (1 + np.abs(gamma * dz)))
-
-            precip_downscaled[dem_mask] = np.nan
-            p_chunk[kk, :, :] = precip_downscaled.astype(np.float32, copy=False)
-
-            del precip_raw, p0_resampled, z0_resampled, dz, precip_downscaled
-
-            pbar.update(1)
-
-        P_var[start:end, :, :] = p_chunk
-        del p_chunk
-        start = end
-
-    pbar.close()
-    root.close()
-    print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
-
-
-def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.5, dem_nodata=None):
-
-    os.makedirs(output_folder_W, exist_ok=True)
-    working_directory = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
-    curvature_path = glob.glob(os.path.join(working_directory, 'inputs', 'dem', '*curvature*.tif'))[0]
-    curvature_weight = 1 - slope_weight
-
-    with rasterio.open(dem_path) as dem_src:
-        dem = dem_src.read(1)
-        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
-        dem_meta = dem_src.meta.copy()
-        dem_crs = dem_src.crs
-        dem_transform = dem_src.transform
-        ny, nx = dem.shape
-
-    with rasterio.open(curvature_path) as curv_src:
-        curvature = curv_src.read(1)
-
-    slope_u = np.gradient(dem, axis=1) / dem_transform[0]
-    slope_v = np.gradient(dem, axis=0) / dem_transform[0]
-    slope = np.sqrt(np.arctan((slope_u ** 2 + slope_v ** 2)))
-    aspect = 3 * np.pi / 2 - np.arctan2(slope_v, slope_u)
-
-    ds = xr.open_dataset(curr_climate_file)
-    assert "u10" in ds and "v10" in ds, "Missing 'u10' or 'v10' in NetCDF"
-
-    u10 = ds["u10"]
-    v10 = ds["v10"]
-    time = ds.valid_time.values if "valid_time" in ds else ds.time.values
-    month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_W, f"wind_speed_direction_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
-        return
-
-    lon = ds.longitude.values
-    lat = ds.latitude.values
-
-    dx = np.abs(lon[1] - lon[0])
-    dy = np.abs(lat[1] - lat[0])
-
-    # Build pixel-centered affine transform
-    lon_sorted = np.all(np.diff(lon) > 0)
-    lat_sorted = np.all(np.diff(lat) < 0)
-    if not lon_sorted or not lat_sorted:
-        raise ValueError("Longitude must be ascending and latitude descending for ERA5-Land.")
-
-    era_transform = Affine.translation(lon[0] - dx / 2, lat[0] - dy / 2) * Affine.scale(dx, -dy)
-    era_crs = CRS.from_epsg(4326)
-
-    wind_speed_all = []
-    wind_dir_all = []
-    time_list = []
-
-    for i, timestep in enumerate(tqdm(time, desc="Downscaling wind speed and direction")):
-        date = pd.to_datetime(str(timestep))
-        u_raw = u10.isel(valid_time=i).values if "valid_time" in u10.dims else u10.isel(time=i).values
-        v_raw = v10.isel(valid_time=i).values if "valid_time" in v10.dims else v10.isel(time=i).values
-        
-
-        wind_u_resampled = np.empty_like(dem, dtype=np.float32)
-        wind_v_resampled = np.empty_like(dem, dtype=np.float32)
-
-        reproject(u_raw, wind_u_resampled,
-                  src_transform=era_transform, src_crs=era_crs,
-                  dst_transform=dem_transform, dst_crs=dem_crs,
-                  resampling=Resampling.bilinear)
-        reproject(v_raw, wind_v_resampled,
-                  src_transform=era_transform, src_crs=era_crs,
-                  dst_transform=dem_transform, dst_crs=dem_crs,
-                  resampling=Resampling.bilinear)
-
-        wind_speed = np.sqrt(wind_u_resampled**2 + wind_v_resampled**2)
-        wind_direction = 3 * np.pi / 2 - np.arctan2(wind_v_resampled, wind_u_resampled)
-
-        slope_wind_direction = slope * np.cos(wind_direction - aspect)
-        range_slope = np.nanmax(slope_wind_direction) - np.nanmin(slope_wind_direction)
-        slope_norm = (slope_wind_direction - np.nanmin(slope_wind_direction)) / range_slope if range_slope > 0 else np.zeros_like(slope_wind_direction) - 0.5
-
-        range_curv = np.nanmax(curvature) - np.nanmin(curvature)
-        curvature_norm = (curvature - np.nanmin(curvature)) / range_curv if range_curv > 0 else np.zeros_like(curvature)
-
-        slope_weighted = slope_weight * slope_norm
-        curvature_weighted = curvature_weight * curvature_norm
-        sum_weights = slope_weighted + curvature_weighted
-        sum_weights[sum_weights == 0] = 1.0
-        slope_final = slope_weighted / sum_weights
-        curv_final = curvature_weighted / sum_weights
-
-        wind_weighting_factor = 1 + slope_final + curv_final
-        wind_speed_adjusted = wind_speed * wind_weighting_factor
-        
-        div_factor = -0.5 * slope_norm * np.sin(2 * (wind_direction - aspect))
-        
-        wind_direction_modified = wind_direction + div_factor
-        
-        wind_direction_deg = np.degrees(wind_direction)
-
-        wind_speed_adjusted[dem_mask] = np.nan
-        wind_direction_deg[dem_mask] = np.nan
-
-        wind_speed_all.append(wind_speed_adjusted[np.newaxis, ...])
-        wind_dir_all.append(wind_direction_deg[np.newaxis, ...])
-        time_list.append(date)
-
-    write_downscaled_to_netcdf(
-        variables_dict={
-            "wind_speed": (wind_speed_all, "m s-1", "Downscaled wind speed"),
-            "wind_direction": (wind_dir_all, "degrees from north", "Downscaled wind direction")
-        },
-        time_list=time_list,
-        dem_shape=dem.shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
-
-    print(f"\nWind downscaling complete. NetCDF saved in: {out_nc}")
-    
 def downscale_Wind(
     dem_path,
     curr_climate_file,
@@ -1247,6 +866,62 @@ def downscale_Wind(
     dem_nodata=None,
     time_chunk=24
 ):
+    
+    """
+    Downscale 10 m wind speed and wind direction to a DEM grid using terrain modifiers.
+
+    This function downsamples ERA5/ERA5-Land ``u10`` and ``v10`` winds to a high-resolution DEM grid
+    and applies terrain-based adjustments using:
+      - local terrain slope/aspect (computed from DEM), and
+      - terrain curvature (read from a raster)
+
+    The workflow:
+      1. Read DEM raster to define target grid/CRS/transform.
+      2. Read curvature raster from ``<working_directory>/inputs/dem/*curvature*.tif``.
+      3. Open climate NetCDF and read ``u10`` and ``v10``.
+      4. Reproject u/v winds from ERA grid to DEM grid (bilinear).
+      5. Compute wind speed and base wind direction.
+      6. Compute slope-wind interaction and normalize slope + curvature terms.
+      7. Apply a wind-speed scaling factor and a directional deflection term.
+      8. Write ``wind_speed`` and ``wind_direction`` to a CF-compliant NetCDF in chunks.
+
+    Output is written as a **monthly** NetCDF file named:
+    ``wind_speed_direction_YYYY_MM.nc`` in ``output_folder_W``.
+
+    Notes
+    -----
+    - ``slope_weight`` balances slope vs curvature contributions (curvature weight is ``1 - slope_weight``).
+    - Output NetCDF includes CF grid mapping information for QGIS/GDAL.
+
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to DEM GeoTIFF.
+    curr_climate_file : str or pathlib.Path
+        Path to monthly climate NetCDF containing ``u10`` and ``v10``.
+    output_folder_W : str or pathlib.Path
+        Output directory where the monthly NetCDF will be saved.
+    slope_weight : float, default 0.5
+        Weight of slope contribution in terrain adjustment (0..1).
+    dem_nodata : float or int, optional
+        Value representing nodata in the DEM. If None, NaNs are used.
+    time_chunk : int, default 24
+        Number of timesteps to process/write per block.
+
+    Returns
+    -------
+    None
+        Writes a NetCDF file to disk and returns.
+
+    Raises
+    ------
+    ValueError
+        If required variables are missing or if ERA longitude/latitude ordering is unexpected.
+    IndexError
+        If curvature raster cannot be found.
+    """
+
+    
     import os
     import glob
     import numpy as np
@@ -1481,158 +1156,7 @@ def downscale_Wind(
     root.close()
     print(f"\nWind downscaling complete. NetCDF saved in: {out_nc}")
 
-    
-def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
-    import numpy as np
-    import os
-    import rasterio
-    import xarray as xr
-    from tqdm import tqdm
-    import pandas as pd
-    from scipy.stats import linregress
-    from rasterio.warp import reproject, Resampling
-    from rasterio.transform import from_origin
-    from rasterio.crs import CRS
-
-    from utils import write_downscaled_to_netcdf  # Make sure this function is available in utils
-
-    geopotential_path = './auxiliary_data/geopotential3.nc'
-    
-    lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
-    lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
-    vp_coeff_nohem = np.array([0.41, 0.42, 0.40, 0.39, 0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40]) / 1000.0
-    vp_coeff_sohem = np.array([0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40, 0.41, 0.42, 0.40, 0.39]) / 1000.0
-
-    os.makedirs(output_folder_LW, exist_ok=True)
-
-    sigma = 5.67e-8
-    a, b, c = 611.21, 17.502, 240.97
-
-    with rasterio.open(dem_path) as dem_src:
-        dem = dem_src.read(1)
-        dem_meta = dem_src.meta.copy()
-        dem_crs = dem_src.crs
-        dem_transform = dem_src.transform
-        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
-
-    ds = xr.open_dataset(curr_climate_file)
-    T = ds["t2m"]
-    D = ds["d2m"]
-    time = ds.valid_time.values if "valid_time" in ds else ds.time.values
-    lon, lat = ds.longitude.values, ds.latitude.values
-    lon2d, lat2d = np.meshgrid(lon, lat)
-
-    center_lat = (lat[0] + lat[-1]) / 2
-    if custom_lapse_rate and calibrate_lapse_rate:
-        raise ValueError("Cannot use both custom_lapse_rate and calibrate_lapse_rate=True.")
-    if custom_lapse_rate:
-        lapse_rate_all = np.array(custom_lapse_rate) / 1000.0
-    elif not calibrate_lapse_rate:
-        lapse_rate_all = lapse_rate_sohem if center_lat < 0 else lapse_rate_nohem
-    vp_coeff_all = vp_coeff_sohem if center_lat < 0 else vp_coeff_nohem
-
-    month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_LW, f"longwave_downscaled_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
-        return
-
-    geop = xr.open_dataset(geopotential_path)
-    z = np.zeros_like(lat2d, dtype=np.float32)
-    for i in range(lat2d.shape[0]):
-        for j in range(lat2d.shape[1]):
-            try:
-                Z = geop.z.sel(latitude=lat2d[i, j], longitude=lon2d[i, j], method="nearest", tolerance=0.5)
-                z[i, j] = Z.values.item() / 9.81
-            except:
-                z[i, j] = np.nan
-
-    z1, z2 = 200, 3000
-    X1, X2 = 0.35, 0.51
-    Y1, Y2 = 0.100, 0.130
-    Z1, Z2 = 0.224, 1.100
-
-    def interpolate_by_elevation(zval, c1, c2):
-        return np.where(
-            zval <= z1, c1,
-            np.where(zval >= z2, c2, c1 + (zval - z1) * (c2 - c1) / (z2 - z1))
-        )
-
-    Xs = interpolate_by_elevation(z, X1, X2)
-    Ys = interpolate_by_elevation(z, Y1, Y2)
-    Zs = interpolate_by_elevation(z, Z1, Z2)
-
-    dx, dy = np.abs(lon[1] - lon[0]), np.abs(lat[1] - lat[0])
-    era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
-    era_crs = CRS.from_epsg(4326)
-
-    data_list = []
-    time_list = []
-
-    for i, timestep in enumerate(tqdm(time, desc="Downscaling longwave radiation")):
-        date = pd.to_datetime(str(timestep))
-        month_index = date.month - 1
-
-        T_now = T.isel(valid_time=i).values if "valid_time" in T.dims else T.isel(time=i).values
-        D_now = D.isel(valid_time=i).values if "valid_time" in D.dims else D.isel(time=i).values
-
-        if calibrate_lapse_rate:
-            T_vals = T_now.flatten()
-            Z_vals = z.flatten()
-            valid = ~np.isnan(T_vals) & ~np.isnan(Z_vals)
-            if np.sum(valid) < 5:
-                lapse_rate = lapse_rate_sohem[month_index] if center_lat < 0 else lapse_rate_nohem[month_index]
-            else:
-                slope, _, _, _, _ = linregress(Z_vals[valid], T_vals[valid])
-                lapse_rate = -slope
-        else:
-            lapse_rate = lapse_rate_all[month_index]
-
-        vp_coeff = vp_coeff_all[month_index]
-        d_t_lapse_rate = vp_coeff * c / b
-
-        t_0 = T_now - lapse_rate * (0 - z)
-        d_0 = D_now - d_t_lapse_rate * (0 - z)
-        T_700 = t_0 - lapse_rate * (z_700 - z) - 273.15
-        D_700 = d_0 - d_t_lapse_rate * (z_700 - z) - 273.15
-
-        es = a * np.exp((b * T_700) / (T_700 + c))
-        e = a * np.exp((b * D_700) / (D_700 + c))
-        RH_700 = np.clip(100 * e / es, 0, 100)
-        cloud_frac = np.clip(0.832 * np.exp((RH_700 - 100) / 41.6), 0, 1)
-
-        e = a * np.exp((b * (D_now - 273.15)) / ((D_now - 273.15) + c))
-        eps_atm = (1.083 * (1 + Zs * cloud_frac**2)) * (1 - Xs * np.exp(-Ys * e / T_now))
-        Qli = eps_atm * sigma * T_now**4
-
-        Qli_resampled = np.empty_like(dem, dtype=np.float32)
-        reproject(
-            source=Qli,
-            destination=Qli_resampled,
-            src_transform=era_transform,
-            src_crs=era_crs,
-            dst_transform=dem_transform,
-            dst_crs=dem_crs,
-            resampling=Resampling.bilinear
-        )
-
-        Qli_resampled[dem_mask] = np.nan
-        data_list.append(Qli_resampled[np.newaxis, ...])
-        time_list.append(date)
-
-    write_downscaled_to_netcdf(
-        variables_dict={
-            "lwr": (data_list, "W/m^2", "Downscaled longwave radiation")
-        },
-        time_list=time_list,
-        dem_shape=dem.shape,
-        dem_transform=dem_transform,
-        dem_crs=dem_crs,
-        out_nc=out_nc
-    )
-
-    print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
-
+   
 def downscale_LW(
     dem_path,
     curr_climate_file,
@@ -1643,6 +1167,64 @@ def downscale_LW(
     dem_nodata=None,
     time_chunk=24
 ):
+    
+    """
+Downscale incoming longwave radiation to a DEM grid using atmospheric emissivity parameterization.
+
+This function estimates downscaled longwave radiation using ERA5/ERA5-Land air temperature (t2m),
+dew point (d2m), and cloud fraction estimated from RH at ~700 hPa.
+
+The workflow:
+  1. Read DEM raster to define target grid/CRS/transform.
+  2. Open climate NetCDF and read ``t2m`` and ``d2m``.
+  3. Read geopotential (``./auxiliary_data/geopotential3.nc``) to estimate ERA-grid elevation.
+  4. Apply lapse-rate corrections to compute temperature/dew point at 700 hPa level approximation.
+  5. Estimate RH_700 and cloud fraction.
+  6. Compute atmospheric emissivity using elevation-dependent coefficients (X, Y, Z).
+  7. Compute longwave radiation on ERA grid: ``Qli = eps_atm * sigma * T^4``.
+  8. Reproject Qli to DEM grid (bilinear) and write output in chunks.
+
+Output is written as a **monthly** NetCDF file named:
+``longwave_downscaled_YYYY_MM.nc`` in ``output_folder_LW``.
+
+Notes
+-----
+- Uses Stefan–Boltzmann constant ``sigma = 5.67e-8``.
+- If ``calibrate_lapse_rate=True``, lapse rate is estimated per timestep by regression of
+  ERA-grid temperature vs ERA-grid elevation.
+- Output NetCDF includes CF grid mapping information for QGIS/GDAL.
+
+Parameters
+----------
+dem_path : str or pathlib.Path
+    Path to DEM GeoTIFF.
+curr_climate_file : str or pathlib.Path
+    Path to monthly climate NetCDF containing ``t2m`` and ``d2m``.
+output_folder_LW : str or pathlib.Path
+    Output directory where the monthly NetCDF will be saved.
+z_700 : float, default 3000
+    Reference height (m) used for the 700 hPa approximation.
+custom_lapse_rate : array-like of length 12, optional
+    Monthly temperature lapse rates in K/km. Mutually exclusive with ``calibrate_lapse_rate=True``.
+calibrate_lapse_rate : bool, default False
+    If True, estimate lapse rate dynamically from ERA-grid temperature vs elevation.
+dem_nodata : float or int, optional
+    Value representing nodata in the DEM. If None, NaNs are used.
+time_chunk : int, default 24
+    Number of timesteps to process/write per block.
+
+Returns
+-------
+None
+    Writes a NetCDF file to disk and returns.
+
+Raises
+------
+ValueError
+    If incompatible options are provided.
+"""
+
+
     import numpy as np
     import os
     import rasterio
@@ -1882,7 +1464,11 @@ def downscale_LW(
 
 
 
-
+def main():
+    ...
+ 
+if __name__ == "__main__":
+    main()
 
 
 
