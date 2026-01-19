@@ -65,6 +65,9 @@ A key feature of `MicroPyzzotMet` is its integration with EarthDataHub [@EarthDa
 
 ![Workflow of the MicroPyzzotMet processing pipeline.\label{fig:micropyzzomet_workflow}](micropyzzotmet_workflow.png){ width=50% }
 
+**Figure 2:** Schematic overview of the *MicroPyzzotMet* downscaling workflow. Coarse-resolution reanalysis data (e.g., ERA5-Land) and a Digital Elevation Model (DEM) constitute the primary inputs. Terrain derivatives (slope, aspect, curvature) are computed from the DEM and combined with solar geometry to drive MicroMet-inspired corrections. Each meteorological variable is processed independently through reprojection to the DEM grid, vertical (lapse-rate) adjustment, and terrain-based corrections, producing high-resolution meteorological fields written as NetCDF outputs suitable for cryospheric and hydrological modelling.
+
+
 The workflow of `MicroPyzzotMet` is controlled by a single JSON configuration file and orchestrated by the main execution function. The pipeline begins by creating a standard folder structure (`inputs/climate`, `inputs/dem`, `outputs`) and by loading or downloading a Digital Elevation Model (DEM). When no DEM is provided, the tool retrieves a Copernicus GLO-30 subset from EarthDataHub as a Zarr dataset, reprojects and resamples it to the user-defined grid, and writes it to GeoTIFF. Slope, aspect, and curvature metrics are then computed and stored for use in the downscaling routines.
 
 Meteorological forcing is obtained either from user-supplied NetCDF files or directly from ERA5-Land via EarthDataHub. When downloaded through EarthDataHub, the Zarr dataset is spatially subsetted to match the DEM extent and written to monthly NetCDF files containing variables such as 2 m air temperature and dewpoint, surface pressure, 10 m wind components, precipitation, and shortwave and longwave radiation. Cumulative fluxes are optionally converted to hourly or daily rates.
