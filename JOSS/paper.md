@@ -15,11 +15,23 @@ authors:
     equal-contrib: true
     affiliation: 1
 
+  - name: Katharina Theresa Scheidt
+    orcid: 0000-0002-1222-5333
+    affiliation: 1
+
+  - name: Valentina Premier
+    orcid: 0000-0002-4629-2235
+    affiliation: 1
+
+  - name: Carlo Marin
+    orcid: 0000-0001-6987-9445
+    affiliation: 1
+
 affiliations:
  - name: Institute for Earth Observation, Eurac Research, Bolzano
    index: 1
 
-date: 02 December 2025
+date: 19 January 2026
 bibliography: paper.bib
 ---
 
