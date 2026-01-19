@@ -1,0 +1,419 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>get_era5_land &mdash; MicroPyzzotMet 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            MicroPyzzotMet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/config_files.html">Configuration files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/running_downscaling.html">Running the downscaling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Methods</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../methods/temperature_downscaling.html">Temperature Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../methods/radiation_downscaling.html">Shortwave Radiation Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../methods/humidity_downscaling.html">Humidity Downscaling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project info</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MicroPyzzotMet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">get_era5_land</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for get_era5_land</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Wed Jun 18 15:59:40 2025</span>
+
+<span class="sd">@author: rbarella</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># get_era5_zarr.py</span>
+<span class="c1">#!/usr/bin/env python3</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Wed Jun 18 15:59:40 2025</span>
+
+<span class="sd">@author: rbarella</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># get_era5_zarr.py</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">rasterio</span>
+<span class="kn">from</span> <span class="nn">rasterio.warp</span> <span class="kn">import</span> <span class="n">transform_bounds</span>
+<span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <span class="n">Parallel</span><span class="p">,</span> <span class="n">delayed</span>
+
+
+<div class="viewcode-block" id="is_valid_netcdf">
+<a class="viewcode-back" href="../api/get_era5_land.html#get_era5_land.is_valid_netcdf">[docs]</a>
+<span class="k">def</span> <span class="nf">is_valid_netcdf</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check whether a NetCDF file exists and can be opened by xarray.</span>
+
+<span class="sd">    This is used to skip already-downloaded or already-generated files.</span>
+<span class="sd">    Returns True if the file can be opened, otherwise False.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="lon_to_360">
+<a class="viewcode-back" href="../api/get_era5_land.html#get_era5_land.lon_to_360">[docs]</a>
+<span class="k">def</span> <span class="nf">lon_to_360</span><span class="p">(</span><span class="n">lon</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a longitude value from [-180, 180] to [0, 360] convention.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lon : float</span>
+<span class="sd">        Longitude in degrees.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Longitude expressed in [0, 360].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">lon</span> <span class="k">if</span> <span class="n">lon</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">lon</span> <span class="o">+</span> <span class="mi">360</span></div>
+
+
+
+<div class="viewcode-block" id="get_tiff_extent_latlon">
+<a class="viewcode-back" href="../api/get_era5_land.html#get_era5_land.get_tiff_extent_latlon">[docs]</a>
+<span class="k">def</span> <span class="nf">get_tiff_extent_latlon</span><span class="p">(</span><span class="n">tiff_path</span><span class="p">,</span> <span class="n">buffer</span><span class="o">=</span><span class="mf">0.4</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the geographic extent of a raster (GeoTIFF) in lat/lon (EPSG:4326).</span>
+
+<span class="sd">    The raster bounds are read from its native CRS and (if needed) reprojected</span>
+<span class="sd">    to EPSG:4326. A small buffer can be applied to enlarge the bounding box.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    tiff_path : str</span>
+<span class="sd">        Path to a GeoTIFF defining the reference area.</span>
+<span class="sd">    buffer : float, optional</span>
+<span class="sd">        Buffer (in degrees) added to each side of the bounding box.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple</span>
+<span class="sd">        (lat_min, lat_max, lon_min, lon_max) in degrees.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">tiff_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
+        <span class="n">bounds</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">bounds</span>
+        <span class="n">src_crs</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">crs</span>
+        <span class="k">if</span> <span class="n">src_crs</span><span class="o">.</span><span class="n">to_epsg</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">4326</span><span class="p">:</span>
+            <span class="n">lon_min</span><span class="p">,</span> <span class="n">lat_min</span><span class="p">,</span> <span class="n">lon_max</span><span class="p">,</span> <span class="n">lat_max</span> <span class="o">=</span> <span class="n">transform_bounds</span><span class="p">(</span>
+                <span class="n">src_crs</span><span class="p">,</span> <span class="s2">&quot;EPSG:4326&quot;</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">left</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">bottom</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">right</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">top</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lon_min</span><span class="p">,</span> <span class="n">lat_min</span><span class="p">,</span> <span class="n">lon_max</span><span class="p">,</span> <span class="n">lat_max</span> <span class="o">=</span> <span class="n">bounds</span><span class="o">.</span><span class="n">left</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">bottom</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">right</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">top</span>
+
+    <span class="k">return</span> <span class="n">lat_min</span> <span class="o">-</span> <span class="n">buffer</span><span class="p">,</span> <span class="n">lat_max</span> <span class="o">+</span> <span class="n">buffer</span><span class="p">,</span> <span class="n">lon_min</span> <span class="o">-</span> <span class="n">buffer</span><span class="p">,</span> <span class="n">lon_max</span> <span class="o">+</span> <span class="n">buffer</span></div>
+
+
+
+<div class="viewcode-block" id="aggregate_to_daily">
+<a class="viewcode-back" href="../api/get_era5_land.html#get_era5_land.aggregate_to_daily">[docs]</a>
+<span class="k">def</span> <span class="nf">aggregate_to_daily</span><span class="p">(</span><span class="n">ds</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Aggregate an ERA5-Land hourly dataset to daily frequency.</span>
+
+<span class="sd">    Rules applied:</span>
+<span class="sd">    - Temperature / winds / pressure variables are averaged over the day.</span>
+<span class="sd">    - Precipitation (&#39;tp&#39;) is kept as the last value of the day (cumulative convention).</span>
+<span class="sd">    - Unknown variables default to daily mean.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ds : xarray.Dataset</span>
+<span class="sd">        Input dataset with a &#39;valid_time&#39; coordinate.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    xarray.Dataset</span>
+<span class="sd">        Daily-aggregated dataset.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mean_vars</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;t2m&#39;</span><span class="p">,</span> <span class="s1">&#39;d2m&#39;</span><span class="p">,</span> <span class="s1">&#39;u10&#39;</span><span class="p">,</span> <span class="s1">&#39;v10&#39;</span><span class="p">,</span> <span class="s1">&#39;sp&#39;</span><span class="p">,</span> <span class="s1">&#39;strd&#39;</span><span class="p">,</span> <span class="s1">&#39;ssrd&#39;</span><span class="p">]</span>
+    <span class="n">sum_vars</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">agg_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">var</span> <span class="o">==</span> <span class="s1">&#39;tp&#39;</span><span class="p">:</span>
+            <span class="c1"># Keep the last hourly value of the day</span>
+            <span class="n">agg_dict</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">last</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">mean_vars</span><span class="p">:</span>
+            <span class="n">agg_dict</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">sum_vars</span><span class="p">:</span>
+            <span class="n">agg_dict</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">agg_dict</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">agg_dict</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="process_month">
+<a class="viewcode-back" href="../api/get_era5_land.html#get_era5_land.process_month">[docs]</a>
+<span class="k">def</span> <span class="nf">process_month</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">surface_vars</span><span class="p">,</span> <span class="n">aggregate_daily</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract and post-process one month of ERA5-Land data and save it to NetCDF.</span>
+
+<span class="sd">    This function:</span>
+<span class="sd">    - selects the month time window from the larger dataset</span>
+<span class="sd">    - subsets the desired surface variables</span>
+<span class="sd">    - converts longitude convention from [0, 360] to [-180, 180] and sorts longitudes</span>
+<span class="sd">    - converts precipitation from meters to millimeters and optionally derives hourly increments</span>
+<span class="sd">    - converts radiation (ssrd/strd) from cumulative J m-2 to W m-2 using time differences</span>
+<span class="sd">    - optionally aggregates data to daily frequency</span>
+<span class="sd">    - writes CRS metadata and exports to NetCDF</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ds : xarray.Dataset</span>
+<span class="sd">        Opened ERA5-Land dataset (already spatially subsetted).</span>
+<span class="sd">    start : pandas.Timestamp</span>
+<span class="sd">        First day of the month to process.</span>
+<span class="sd">    output_dir : str</span>
+<span class="sd">        Folder where output NetCDF files are saved.</span>
+<span class="sd">    surface_vars : list of str</span>
+<span class="sd">        Variables to keep (e.g. t2m, d2m, tp, ssrd...).</span>
+<span class="sd">    aggregate_daily : bool, optional</span>
+<span class="sd">        If True, dataset is aggregated to daily values.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        The function writes output to disk.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">offsets</span><span class="o">.</span><span class="n">MonthEnd</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="s2">&quot;_daily&quot;</span> <span class="k">if</span> <span class="n">aggregate_daily</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">surface_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;era_</span><span class="si">{</span><span class="n">start</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y_%m&#39;</span><span class="p">)</span><span class="si">}{</span><span class="n">tag</span><span class="si">}</span><span class="s2">.nc&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_valid_netcdf</span><span class="p">(</span><span class="n">surface_file</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping </span><span class="si">{</span><span class="n">start</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> - already exists.&quot;</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="n">ds_month</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">))</span>
+    <span class="n">ds_surface</span> <span class="o">=</span> <span class="n">ds_month</span><span class="p">[</span><span class="n">surface_vars</span><span class="p">]</span>
+
+    <span class="c1"># Convert longitude to [-180, 180]</span>
+    <span class="n">longitudes</span> <span class="o">=</span> <span class="n">ds_surface</span><span class="p">[</span><span class="s1">&#39;longitude&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">longitudes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">longitudes</span> <span class="o">&gt;</span> <span class="mi">180</span><span class="p">,</span> <span class="n">longitudes</span> <span class="o">-</span> <span class="mi">360</span><span class="p">,</span> <span class="n">longitudes</span><span class="p">)</span>
+    <span class="n">ds_surface</span> <span class="o">=</span> <span class="n">ds_surface</span><span class="o">.</span><span class="n">assign_coords</span><span class="p">(</span><span class="n">longitude</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;longitude&quot;</span><span class="p">,</span> <span class="n">longitudes</span><span class="p">))</span>
+    <span class="n">ds_surface</span> <span class="o">=</span> <span class="n">ds_surface</span><span class="o">.</span><span class="n">sortby</span><span class="p">(</span><span class="s1">&#39;longitude&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Handle precipitation</span>
+    <span class="k">if</span> <span class="s1">&#39;tp&#39;</span> <span class="ow">in</span> <span class="n">ds_surface</span><span class="p">:</span>
+        <span class="n">tp_mm</span> <span class="o">=</span> <span class="n">ds_surface</span><span class="p">[</span><span class="s1">&#39;tp&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">aggregate_daily</span><span class="p">:</span>
+            <span class="n">tp_mm_hourly</span> <span class="o">=</span> <span class="n">tp_mm</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;valid_time.dayofyear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">group</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">group</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">group</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="s1">&#39;valid_time&#39;</span><span class="p">)],</span>
+                    <span class="n">dim</span><span class="o">=</span><span class="s1">&#39;valid_time&#39;</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">tp_mm_hourly</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;units&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;mm&#39;</span>
+            <span class="n">tp_mm_hourly</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Converted from m to mm; Converted to mm/hour from daily cumulative&#39;</span>
+            <span class="n">ds_surface</span><span class="p">[</span><span class="s1">&#39;tp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tp_mm_hourly</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tp_mm</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;units&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;mm&#39;</span>
+            <span class="n">tp_mm</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Converted from m to mm&#39;</span>
+            <span class="n">ds_surface</span><span class="p">[</span><span class="s1">&#39;tp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tp_mm</span>
+
+    <span class="c1"># Handle radiation (shortwave and longwave)</span>
+    <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ssrd&#39;</span><span class="p">,</span> <span class="s1">&#39;strd&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">ds_surface</span><span class="p">:</span>
+            <span class="n">rad_j</span> <span class="o">=</span> <span class="n">ds_surface</span><span class="p">[</span><span class="n">var</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">aggregate_daily</span><span class="p">:</span>
+                <span class="n">rad_hourly</span> <span class="o">=</span> <span class="n">rad_j</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;valid_time.dayofyear&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+                    <span class="k">lambda</span> <span class="n">group</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                        <span class="p">[</span><span class="n">group</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">group</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="s1">&#39;valid_time&#39;</span><span class="p">)],</span>
+                        <span class="n">dim</span><span class="o">=</span><span class="s1">&#39;valid_time&#39;</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">rad_wm2</span> <span class="o">=</span> <span class="n">rad_hourly</span> <span class="o">/</span> <span class="mi">3600</span>
+                <span class="n">rad_wm2</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;units&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;W m-2&#39;</span>
+                <span class="n">rad_wm2</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Converted from J m-2 to W m-2 using hourly cumulative diff&#39;</span>
+                <span class="n">ds_surface</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">rad_wm2</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">rad_daily</span> <span class="o">=</span> <span class="n">rad_j</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">last</span><span class="p">()</span> <span class="o">/</span> <span class="mi">86400</span>
+                <span class="n">rad_daily</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;units&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;W m-2&#39;</span>
+                <span class="n">rad_daily</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Daily average from cumulative J m-2 (last of day / 86400)&#39;</span>
+                <span class="n">ds_surface</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">rad_daily</span>
+
+    <span class="k">if</span> <span class="n">aggregate_daily</span><span class="p">:</span>
+        <span class="n">ds_surface</span> <span class="o">=</span> <span class="n">aggregate_to_daily</span><span class="p">(</span><span class="n">ds_surface</span><span class="p">)</span>
+
+    <span class="n">ds_surface</span><span class="o">.</span><span class="n">latitude</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">units</span><span class="o">=</span><span class="s1">&#39;degrees_north&#39;</span><span class="p">,</span> <span class="n">standard_name</span><span class="o">=</span><span class="s1">&#39;latitude&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="s1">&#39;Y&#39;</span><span class="p">)</span>
+    <span class="n">ds_surface</span><span class="o">.</span><span class="n">longitude</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">units</span><span class="o">=</span><span class="s1">&#39;degrees_east&#39;</span><span class="p">,</span> <span class="n">standard_name</span><span class="o">=</span><span class="s1">&#39;longitude&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="s1">&#39;X&#39;</span><span class="p">)</span>
+
+    <span class="c1"># NOTE: requires rioxarray; if it&#39;s missing, move this inside a try/except or mock it for docs</span>
+    <span class="n">ds_surface</span> <span class="o">=</span> <span class="n">ds_surface</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">write_crs</span><span class="p">(</span><span class="s2">&quot;EPSG:4326&quot;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">ds_surface</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="n">surface_file</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_era5">
+<a class="viewcode-back" href="../api/get_era5_land.html#get_era5_land.get_era5">[docs]</a>
+<span class="k">def</span> <span class="nf">get_era5</span><span class="p">(</span><span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">,</span> <span class="n">refrence_area_path</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">PAT</span><span class="p">,</span> <span class="n">jobs_download</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">aggregate_daily</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Download and subset ERA5-Land data from a Zarr store and save it as monthly NetCDF files.</span>
+
+<span class="sd">    This function:</span>
+<span class="sd">    - reads a reference GeoTIFF to determine the lat/lon bounding box</span>
+<span class="sd">    - opens the ERA5-Land Zarr dataset</span>
+<span class="sd">    - subsets the data spatially and temporally</span>
+<span class="sd">    - dispatches monthly processing in parallel (one file per month)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    start_date : str or datetime-like</span>
+<span class="sd">        Start of the requested time period.</span>
+<span class="sd">    end_date : str or datetime-like</span>
+<span class="sd">        End of the requested time period.</span>
+<span class="sd">    refrence_area_path : str</span>
+<span class="sd">        Path to a reference GeoTIFF used to define the spatial extent.</span>
+<span class="sd">    output_dir : str</span>
+<span class="sd">        Output directory where monthly NetCDF files are written.</span>
+<span class="sd">    PAT : str</span>
+<span class="sd">        Personal Access Token used to access the EarthDataHub endpoint.</span>
+<span class="sd">    jobs_download : int, optional</span>
+<span class="sd">        Number of parallel jobs (currently not used; joblib uses all cores with n_jobs=-1).</span>
+<span class="sd">    aggregate_daily : bool, optional</span>
+<span class="sd">        If True, output files contain daily aggregated variables.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        The function writes NetCDF outputs to disk.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">lat_min</span><span class="p">,</span> <span class="n">lat_max</span><span class="p">,</span> <span class="n">lon_min</span><span class="p">,</span> <span class="n">lon_max</span> <span class="o">=</span> <span class="n">get_tiff_extent_latlon</span><span class="p">(</span><span class="n">refrence_area_path</span><span class="p">)</span>
+    <span class="n">lat_slice</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">lat_max</span><span class="p">,</span> <span class="n">lat_min</span><span class="p">)</span>
+    <span class="n">lon_slice</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">lon_to_360</span><span class="p">(</span><span class="n">lon_min</span><span class="p">),</span> <span class="n">lon_to_360</span><span class="p">(</span><span class="n">lon_max</span><span class="p">))</span>
+    <span class="n">subset_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;latitude&quot;</span><span class="p">:</span> <span class="n">lat_slice</span><span class="p">,</span> <span class="s2">&quot;longitude&quot;</span><span class="p">:</span> <span class="n">lon_slice</span><span class="p">}</span>
+
+    <span class="n">variables</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;d2m&#39;</span><span class="p">,</span> <span class="s1">&#39;t2m&#39;</span><span class="p">,</span> <span class="s1">&#39;sp&#39;</span><span class="p">,</span> <span class="s1">&#39;ssrd&#39;</span><span class="p">,</span> <span class="s1">&#39;strd&#39;</span><span class="p">,</span> <span class="s1">&#39;tp&#39;</span><span class="p">,</span> <span class="s1">&#39;u10&#39;</span><span class="p">,</span> <span class="s1">&#39;v10&#39;</span><span class="p">]</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;https://edh:</span><span class="si">{</span><span class="n">PAT</span><span class="si">}</span><span class="s2">@data.earthdatahub.destine.eu/era5/reanalysis-era5-land-no-antartica-v0.zarr&quot;</span>
+
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">chunks</span><span class="o">=</span><span class="p">{},</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;zarr&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="o">**</span><span class="n">subset_dict</span><span class="p">)</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">valid_time</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">))</span>
+
+    <span class="n">time_ranges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="n">start_date</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="n">end_date</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;MS&#39;</span><span class="p">)</span>
+
+    <span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=-</span><span class="mi">1</span><span class="p">)(</span>
+        <span class="n">delayed</span><span class="p">(</span><span class="n">process_month</span><span class="p">)(</span>
+            <span class="n">ds</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">variables</span><span class="p">,</span> <span class="n">aggregate_daily</span><span class="o">=</span><span class="n">aggregate_daily</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="n">time_ranges</span>
+    <span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ERA5 download complete.&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Riccardo Barella.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

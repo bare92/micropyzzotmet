@@ -1,0 +1,209 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Longwave Radiation Downscaling &mdash; MicroPyzzotMet 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            MicroPyzzotMet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/config_files.html">Configuration files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/running_downscaling.html">Running the downscaling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Methods</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="temperature_downscaling.html">Temperature Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="radiation_downscaling.html">Shortwave Radiation Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="humidity_downscaling.html">Humidity Downscaling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project info</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MicroPyzzotMet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Longwave Radiation Downscaling</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/methods/longwave_downscaling.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="longwave-radiation-downscaling">
+<h1>Longwave Radiation Downscaling<a class="headerlink" href="#longwave-radiation-downscaling" title="Link to this heading"></a></h1>
+<p>MicroPyzzotMet downscales downwelling longwave radiation (LWR) from
+coarse-resolution climate data by reconstructing key atmospheric
+properties—temperature, humidity, cloudiness, and emissivity—and
+projecting these conditions onto the high-resolution DEM grid.</p>
+<p>The approach follows the conceptual framework of MicroMet, but uses a
+lighter and more flexible formulation suitable for operational
+downscaling pipelines.</p>
+<section id="conceptual-overview">
+<h2>Conceptual Overview<a class="headerlink" href="#conceptual-overview" title="Link to this heading"></a></h2>
+<p>Longwave radiation reaching the surface depends primarily on:</p>
+<ul class="simple">
+<li><p>air temperature,</p></li>
+<li><p>atmospheric moisture content,</p></li>
+<li><p>cloud fraction, and</p></li>
+<li><p>the effective emissivity of the atmosphere.</p></li>
+</ul>
+<p>Because longwave radiation is mostly diffuse and originates from the
+entire sky dome, terrain effects such as slope and aspect are far less
+important than for shortwave radiation.
+MicroPyzzotMet therefore focuses on improving the <em>atmospheric</em>
+representation rather than applying terrain-based corrections.</p>
+</section>
+<section id="method-summary">
+<h2>Method Summary<a class="headerlink" href="#method-summary" title="Link to this heading"></a></h2>
+<p>The downscaling procedure consists of:</p>
+<ol class="arabic simple">
+<li><p><strong>Reading temperature and dew point</strong> from ERA5(-Land).
+These fields provide the basis for estimating atmospheric humidity
+and emissivity.</p></li>
+<li><p><strong>Estimating atmospheric profiles.</strong>
+Temperature and humidity are adjusted with elevation using monthly or
+user-specified lapse rates. This allows MicroPyzzotMet to represent
+vertical gradients that are not resolved in coarse ERA5 data.</p></li>
+<li><p><strong>Diagnosing cloud fraction.</strong>
+Cloudiness is inferred from mid-tropospheric humidity, providing a
+smooth transition between clear-sky and overcast conditions.</p></li>
+<li><p><strong>Computing atmospheric emissivity.</strong>
+Emissivity is evaluated using empirical relationships that depend on
+vapour pressure, cloudiness, and elevation. This determines how
+efficiently the atmosphere emits longwave radiation.</p></li>
+<li><p><strong>Estimating longwave radiation.</strong>
+Longwave fluxes are computed using the standard Stefan–Boltzmann
+formulation based on reconstructed emissivity and temperature.</p></li>
+<li><p><strong>Reprojecting to the DEM.</strong>
+The coarse longwave field is interpolated to the DEM grid and masked
+using DEM nodata values.</p></li>
+<li><p><strong>Writing monthly output files.</strong>
+The final product is a time series of longwave radiation maps aligned
+with the DEM.</p></li>
+</ol>
+</section>
+<section id="what-this-method-captures">
+<h2>What This Method Captures<a class="headerlink" href="#what-this-method-captures" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Warmer and more humid air emits more longwave radiation.</p></li>
+<li><p>Cloudy conditions strongly enhance longwave fluxes.</p></li>
+<li><p>Elevation influences atmospheric moisture and emissivity.</p></li>
+<li><p>Spatial detail is added through DEM-based reprojection.</p></li>
+</ul>
+</section>
+<section id="what-this-method-does-not-do">
+<h2>What This Method Does <em>Not</em> Do<a class="headerlink" href="#what-this-method-does-not-do" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>No terrain shading or slope corrections (appropriate for longwave).</p></li>
+<li><p>No explicit sky-view factor adjustments.</p></li>
+<li><p>No radiative transfer modelling—this is a practical, empirical method.</p></li>
+</ul>
+</section>
+<section id="output">
+<h2>Output<a class="headerlink" href="#output" title="Link to this heading"></a></h2>
+<p>Downscaled longwave radiation fields are written to:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">longwave_downscaled_YYYY_MM</span><span class="o">.</span><span class="n">nc</span>
+</pre></div>
+</div>
+<p>Each file contains DEM-aligned longwave radiation (W m⁻²) together with
+time information and metadata documenting the settings used.</p>
+</section>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Link to this heading"></a></h2>
+<p>The MicroPyzzotMet longwave method provides a balance between physical
+realism and computational simplicity. By reconstructing key atmospheric
+properties before reprojection, the method produces more realistic
+longwave inputs for snow and hydrological models than a simple spatial
+interpolation of ERA5 values.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Riccardo Barella.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

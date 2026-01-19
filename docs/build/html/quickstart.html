@@ -1,0 +1,289 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quickstart &mdash; MicroPyzzotMet 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Configuration files" href="usage/config_files.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            MicroPyzzotMet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#clone-the-repository">1. Clone the repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#set-up-the-environment">2. Set up the environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prepare-your-configuration-file">3. Prepare your configuration file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run-the-downscaling-model">4. Run the downscaling model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#understanding-the-output-structure">5. Understanding the output structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-running-the-maipo-workflow">Example: running the Maipo workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-bash-script">Example bash script</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/config_files.html">Configuration files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage/running_downscaling.html">Running the downscaling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Methods</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="methods/temperature_downscaling.html">Temperature Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="methods/radiation_downscaling.html">Shortwave Radiation Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="methods/humidity_downscaling.html">Humidity Downscaling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Project info</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">MicroPyzzotMet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Quickstart</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/quickstart.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="quickstart">
+<h1>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading"></a></h1>
+<p>This quickstart provides the minimal steps to run a complete
+MicroPyzzotMet downscaling workflow, from cloning the repository to
+running a full example (e.g. the Maipo domain).</p>
+<section id="clone-the-repository">
+<h2>1. Clone the repository<a class="headerlink" href="#clone-the-repository" title="Link to this heading"></a></h2>
+<p>Clone the project from GitHub and move into the folder:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">bare92</span><span class="o">/</span><span class="n">micropyzzotmet</span><span class="o">.</span><span class="n">git</span>
+<span class="n">cd</span> <span class="n">micropyzzotmet</span>
+</pre></div>
+</div>
+</section>
+<section id="set-up-the-environment">
+<h2>2. Set up the environment<a class="headerlink" href="#set-up-the-environment" title="Link to this heading"></a></h2>
+<p>MicroPyzzotMet provides a setup script that installs all required
+dependencies and prepares the environment. From the project root, run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chmod</span> <span class="o">+</span><span class="n">x</span> <span class="n">setup_micropyzzotmet_env</span><span class="o">.</span><span class="n">sh</span>
+<span class="o">./</span><span class="n">setup_micropyzzotmet_env</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>Follow any instructions printed on screen (e.g., activating a conda or
+virtual environment).</p>
+</section>
+<section id="prepare-your-configuration-file">
+<h2>3. Prepare your configuration file<a class="headerlink" href="#prepare-your-configuration-file" title="Link to this heading"></a></h2>
+<p>MicroPyzzotMet is controlled by a JSON configuration file specifying:</p>
+<ul class="simple">
+<li><p>working directory</p></li>
+<li><p>DEM source (local file or auto-download)</p></li>
+<li><p>ERA5-Land input</p></li>
+<li><p>time period</p></li>
+<li><p>variables to downscale</p></li>
+<li><p>lapse rates</p></li>
+<li><p>parallelisation settings</p></li>
+</ul>
+<p>An example is provided in <code class="docutils literal notranslate"><span class="pre">micro_config_DEMO_MAIPO.json</span></code>.
+Typical structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;working_directory&quot;</span><span class="p">:</span> <span class="s2">&quot;../DEMO_micromet_outputs&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;dem_file&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+    <span class="s2">&quot;download_dem_extent&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;lat_min&quot;</span><span class="p">:</span> <span class="mi">6205000</span><span class="p">,</span>
+    <span class="s2">&quot;lat_max&quot;</span><span class="p">:</span> <span class="mi">6342500</span><span class="p">,</span>
+    <span class="s2">&quot;lon_min&quot;</span><span class="p">:</span> <span class="mi">366000</span><span class="p">,</span>
+    <span class="s2">&quot;lon_max&quot;</span><span class="p">:</span> <span class="mi">428500</span>
+    <span class="p">},</span>
+  <span class="s2">&quot;download_dem_epsg&quot;</span><span class="p">:</span> <span class="mi">32719</span><span class="p">,</span>
+  <span class="s2">&quot;download_dem_resolution&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+  <span class="s2">&quot;output_filename_dem&quot;</span><span class="p">:</span> <span class="s2">&quot;downloaded_dem.tif&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;era_file&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+  <span class="s2">&quot;earthdatahub_pat&quot;</span><span class="p">:</span> <span class="s2">&quot;edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;variables_to_downscale&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;t_air&quot;</span><span class="p">:</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sw_radiation&quot;</span><span class="p">:</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;relative_humidity&quot;</span><span class="p">:</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;precipitation&quot;</span><span class="p">:</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;wind&quot;</span><span class="p">:</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lw_radiation&quot;</span><span class="p">:</span> <span class="s2">&quot;n&quot;</span>
+  <span class="p">},</span>
+  <span class="s2">&quot;start_date&quot;</span><span class="p">:</span> <span class="s2">&quot;2017-04-01&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;end_date&quot;</span><span class="p">:</span> <span class="s2">&quot;2017-05-31&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;aggregate_daily&quot;</span><span class="p">:</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;write_buffer_steps&quot;</span><span class="p">:</span> <span class="mi">192</span><span class="p">,</span>
+  <span class="s2">&quot;dem_nodata&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">32768</span><span class="p">,</span>
+  <span class="s2">&quot;auto_calibrate_lapse_rate&quot;</span><span class="p">:</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;custom_lapse_rates&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="s2">&quot;monthly&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">8.1</span><span class="p">,</span> <span class="mf">7.9</span><span class="p">,</span> <span class="mf">7.78</span><span class="p">,</span> <span class="mf">7.76</span><span class="p">,</span> <span class="mf">7.9</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mf">8.2</span><span class="p">,</span> <span class="mf">8.4</span><span class="p">,</span> <span class="mf">8.6</span><span class="p">,</span> <span class="mf">8.7</span><span class="p">,</span> <span class="mf">8.4</span><span class="p">,</span> <span class="mf">8.32</span><span class="p">]</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;precipitation&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="s2">&quot;monthly&quot;</span><span class="p">:</span> <span class="n">null</span>
+    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="s2">&quot;jobs_parallel_downscale&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+  <span class="s2">&quot;jobs_parallel_download&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You must obtain a Personal Access Token (PAT) from
+<a class="reference external" href="https://earthdatahub.destine.eu/">https://earthdatahub.destine.eu/</a> to download ERA5-Land data
+automatically.</p>
+</div>
+</section>
+<section id="run-the-downscaling-model">
+<h2>4. Run the downscaling model<a class="headerlink" href="#run-the-downscaling-model" title="Link to this heading"></a></h2>
+<p>To run the model using your configuration file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">main_micromet</span><span class="o">.</span><span class="n">py</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your_config</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>This launches the entire downscaling workflow, including:</p>
+<ul class="simple">
+<li><p>DEM preparation (or auto-download)</p></li>
+<li><p>climate data download (if enabled)</p></li>
+<li><p>downscaling of all selected variables</p></li>
+<li><p>writing outputs in NetCDF format</p></li>
+</ul>
+</section>
+<section id="understanding-the-output-structure">
+<h2>5. Understanding the output structure<a class="headerlink" href="#understanding-the-output-structure" title="Link to this heading"></a></h2>
+<p>MicroPyzzotMet automatically creates a folder structure under
+<code class="docutils literal notranslate"><span class="pre">working_directory</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>working_directory/
+├── inputs/
+│   ├── climate/           # ERA5-Land NetCDF files
+│   └── dem/               # DEM and derived slope/aspect/curvature
+└── outputs/
+    ├── Temperature/
+    ├── SW/                # Shortwave radiation
+    ├── RH/                # Relative humidity
+    ├── P/                 # Precipitation
+    ├── Wind/              # Wind speed/direction
+    └── LW/                # Longwave radiation
+</pre></div>
+</div>
+</section>
+<section id="example-running-the-maipo-workflow">
+<h2>Example: running the Maipo workflow<a class="headerlink" href="#example-running-the-maipo-workflow" title="Link to this heading"></a></h2>
+<p>A ready-to-use script is provided for the Maipo region. To run it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">chmod</span> <span class="o">+</span><span class="n">x</span> <span class="n">run_micromet_MAIPO</span><span class="o">.</span><span class="n">sh</span>
+<span class="o">./</span><span class="n">run_micromet_MAIPO</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>This script uses <code class="docutils literal notranslate"><span class="pre">micro_config_MAIPO_AUTODEM.json</span></code> and runs the full
+workflow automatically.</p>
+</section>
+<section id="example-bash-script">
+<h2>Example bash script<a class="headerlink" href="#example-bash-script" title="Link to this heading"></a></h2>
+<p>Below is an example of a user script that activates an environment and
+runs MicroPyzzotMet:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>#!/bin/bash
+
+# Exit if any command fails
+set -e
+
+# Activate conda environment
+echo &quot;Activating conda environment &#39;microenv&#39;...&quot;
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate microenv
+
+# Path to your Python script and config
+SCRIPT_PATH=&quot;./main_micromet.py&quot;
+CONFIG_PATH=&quot;./micro_config_DEMO_MAIPO.json&quot;
+
+echo &quot;Running MicroMet downscaling...&quot;
+python &quot;$SCRIPT_PATH&quot; &quot;$CONFIG_PATH&quot;
+
+echo &quot;Done.&quot;
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="usage/config_files.html" class="btn btn-neutral float-right" title="Configuration files" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Riccardo Barella.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
