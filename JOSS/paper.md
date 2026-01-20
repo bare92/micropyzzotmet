@@ -63,7 +63,7 @@ A key feature of `MicroPyzzotMet` is its integration with EarthDataHub [@EarthDa
 
 `MicroPyzzotMet` is implemented entirely in Python and builds on widely used scientific and geospatial libraries, including [NumPy](https://numpy.org/), [pandas](https://pandas.pydata.org/), [xarray](https://docs.xarray.dev/), and its Zarr engine for cloud-native data access. It uses [rasterio](https://rasterio.readthedocs.io/) and [rioxarray](https://corteva.github.io/rioxarray/stable/) for raster handling, and [pyproj](https://pyproj4.github.io/pyproj/stable/) for coordinate transformations. Terrain derivatives such as slope, aspect, and curvature are generated with `rasterio`, `gdaldem`, and custom convolution kernels, while [pvlib](https://pvlib-python.readthedocs.io/) is employed to compute solar geometry required for shortwave radiation corrections. Parallel processing is handled via [joblib](https://joblib.readthedocs.io/) to distribute downscaling tasks across CPU cores.
 
-![Workflow of the MicroPyzzotMet processing pipeline.\label{fig:micropyzzomet_workflow}](micropyzzotmet_workflow.png){ width=50% }
+![Workflow of the MicroPyzzotMet processing pipeline.\label{fig:micropyzzomet_workflow}](micropyzzotmet_workflow.png)
 
 **Figure 2:** Schematic overview of the *MicroPyzzotMet* downscaling workflow. Coarse-resolution reanalysis data (e.g., ERA5-Land) and a Digital Elevation Model (DEM) constitute the primary inputs. Terrain derivatives (slope, aspect, curvature) are computed from the DEM and combined with solar geometry to drive MicroMet-inspired corrections. Each meteorological variable is processed independently through reprojection to the DEM grid, vertical (lapse-rate) adjustment, and terrain-based corrections, producing high-resolution meteorological fields written as NetCDF outputs suitable for cryospheric and hydrological modelling.
 
@@ -95,6 +95,25 @@ The selection of variables to downscale is fully configurable, allowing modular 
 | Precipitation                 | `P`             | mm       | Elevation-dependent scaling using empirical gradients                              |
 | Incoming longwave radiation   | `LW`            | W m⁻²    | Atmospheric and cloudiness corrections                                            |
 | Incoming shortwave radiation  | `SW`            | W m⁻²    | Topographic and solar-geometry corrections                                        |
+
+# Software Design
+
+`MicroPyzzotMet` follows a modular and configuration-driven software design aimed at simplicity, transparency, and reproducibility. The overall workflow is controlled by a single JSON configuration file, which defines data sources, spatial extent, temporal range, target resolution, and the set of meteorological variables to be downscaled. This design minimizes hard-coded parameters and allows users to adapt the workflow to new regions or experiments without modifying the core codebase.
+
+Each meteorological variable is handled by an independent downscaling module implementing MicroMet-inspired parameterizations. These modules follow a consistent structure: coarse-resolution climate fields are read from NetCDF or Zarr datasets, reprojected onto the Digital Elevation Model (DEM) grid, adjusted vertically using lapse-rate, and finally corrected for terrain effects where applicable. This variable-wise separation improves code readability, facilitates debugging, and allows straightforward extension of the package to additional variables or alternative parameterizations.
+
+Intermediate products such as terrain derivatives (slope, aspect, curvature) and reprojected climate fields are cached on disk and reused across processing steps. This reduces redundant computations and improves performance when processing long time series or large spatial domains. Parallel execution is supported through task-level parallelism, enabling efficient use of multi-core systems while keeping memory requirements low.
+
+The software relies exclusively on widely adopted open-source Python libraries (e.g., NumPy, Xarray, Rasterio), ensuring long-term maintainability and ease of integration with existing scientific workflows. Input and output formats follow community standards (GeoTIFF and NetCDF), making the resulting datasets immediately usable in cryospheric, hydrological, and land-surface models.
+
+# Research Impact Statement
+
+`MicroPyzzotMet` lowers the technical and computational barriers to producing high-resolution meteorological forcing in complex terrain. By providing a lightweight, transparent alternative to more computationally intensive downscaling frameworks, it enables researchers to rapidly generate spatially distributed climate fields suitable for snow, glacier, permafrost, and hydrological modelling over large domains and long time periods.
+
+The package is particularly relevant for applications where computational efficiency, reproducibility, and scalability are critical, such as ensemble modelling, sensitivity analyses, operational forecasting chains, and climate-impact assessments. Its reliance on globally available reanalysis products and open digital elevation models makes it applicable worldwide, including data-scarce mountain regions.
+
+By reimplementing the widely used MicroMet methodology in a modern, open-source Python framework, `MicroPyzzotMet` bridges legacy modelling approaches and contemporary data ecosystems. The integration with cloud-native reanalysis archives further supports reproducible research and facilitates the adoption of best practices in scientific computing. As such, the tool contributes to accelerating cryospheric and hydrological research and supports transparent, reproducible modelling workflows across disciplines.
+
 
 # Working examples
 
