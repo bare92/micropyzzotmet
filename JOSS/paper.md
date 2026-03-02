@@ -98,21 +98,29 @@ The selection of variables to downscale is fully configurable, allowing modular 
 
 # Software Design
 
-`MicroPyzzotMet` follows a modular and configuration-driven software design aimed at simplicity, transparency, and reproducibility. The overall workflow is controlled by a single JSON configuration file, which defines data sources, spatial extent, temporal range, target resolution, and the set of meteorological variables to be downscaled. This design minimizes hard-coded parameters and allows users to adapt the workflow to new regions or experiments without modifying the core codebase.
+`MicroPyzzotMet` follows a modular, configuration-driven architecture designed for simplicity, transparency, and computational scalability. The entire workflow is controlled through a single JSON configuration file, which specifies spatial extent, temporal range, input data sources, resolution, selected variables, and optional lapse-rate calibration. This minimizes hard-coded parameters and ensures reproducibility across experiments and study areas.
 
-Each meteorological variable is handled by an independent downscaling module implementing MicroMet-inspired parameterizations. These modules follow a consistent structure: coarse-resolution climate fields are read from NetCDF or Zarr datasets, reprojected onto the Digital Elevation Model (DEM) grid, adjusted vertically using lapse-rate, and finally corrected for terrain effects where applicable. This variable-wise separation improves code readability, facilitates debugging, and allows straightforward extension of the package to additional variables or alternative parameterizations.
+Each meteorological variable is processed through an independent downscaling routine. Temperature, shortwave radiation, relative humidity, precipitation, wind, and longwave radiation are implemented as separate modules that follow a consistent structure: coarse-resolution climate fields are read, vertically adjusted using MicroMet-style parameterizations, reprojected to the DEM grid, and optionally corrected for terrain effects. This modular separation improves maintainability, facilitates testing, and allows straightforward extension to additional variables or alternative parameterizations.
 
-Intermediate products such as terrain derivatives (slope, aspect, curvature) and reprojected climate fields are cached on disk and reused across processing steps. This reduces redundant computations and improves performance when processing long time series or large spatial domains. Parallel execution is supported through task-level parallelism, enabling efficient use of multi-core systems while keeping memory requirements low.
+Memory-efficient processing is achieved through buffered NetCDF writing and task-level parallelization across monthly climate files. Terrain derivatives (slope, aspect, curvature) are computed once and reused across variables, reducing redundant computation.
 
-The software relies exclusively on widely adopted open-source Python libraries (e.g., NumPy, Xarray, Rasterio), ensuring long-term maintainability and ease of integration with existing scientific workflows. Input and output formats follow community standards (GeoTIFF and NetCDF), making the resulting datasets immediately usable in cryospheric, hydrological, and land-surface models.
+**Build vs. contribute justification.** Existing terrain-aware downscaling frameworks such as `TopoPyScale` focus on high-resolution atmospheric interpolation and terrain clustering strategies optimized for fine-scale alpine modelling. These systems prioritize physical detail and complex atmospheric structure reconstruction. `MicroPyzzotMet` instead targets a complementary use case: lightweight, computationally efficient, large-domain processing using MicroMet-inspired corrections integrated with cloud-native ERA5-Land data access. Extending existing high-complexity frameworks to support this simplified, memory-buffered architecture would require substantial structural changes. The development of a purpose-built implementation therefore provides clearer conceptual scope, reduced dependencies, and improved scalability for operational and ensemble applications.
 
 # Research Impact Statement
 
-`MicroPyzzotMet` lowers the technical and computational barriers to producing high-resolution meteorological forcing in complex terrain. By providing a lightweight, transparent alternative to more computationally intensive downscaling frameworks, it enables researchers to rapidly generate spatially distributed climate fields suitable for snow, glacier, permafrost, and hydrological modelling over large domains and long time periods.
+`MicroPyzzotMet` enables reproducible generation of high-resolution meteorological forcing fields from globally available reanalysis datasets using a computationally lightweight methodology. Its impact lies in lowering both technical and computational barriers to terrain-aware downscaling in cryospheric and hydrological modelling.
 
-The package is particularly relevant for applications where computational efficiency, reproducibility, and scalability are critical, such as ensemble modelling, sensitivity analyses, operational forecasting chains, and climate-impact assessments. Its reliance on globally available reanalysis products and open digital elevation models makes it applicable worldwide, including data-scarce mountain regions.
+The package supports multi-decadal simulations over large spatial domains through buffered NetCDF writing, monthly parallelization, and direct cloud-native access to ERA5-Land via Zarr archives. These design choices make it possible to perform ensemble experiments, sensitivity analyses, and operational workflows on standard multi-core workstations without requiring high-performance computing infrastructure.
 
-By reimplementing the widely used MicroMet methodology in a modern, open-source Python framework, `MicroPyzzotMet` bridges legacy modelling approaches and contemporary data ecosystems. The integration with cloud-native reanalysis archives further supports reproducible research and facilitates the adoption of best practices in scientific computing. As such, the tool contributes to accelerating cryospheric and hydrological research and supports transparent, reproducible modelling workflows across disciplines.
+The software demonstrates community readiness through:
+- Open-source availability under a permissive license  
+- Modular variable-specific implementations  
+- Configuration-driven reproducibility  
+- Automated DEM acquisition and preprocessing  
+- Standardized NetCDF outputs with embedded CRS metadata  
+- Compatibility with S3M hydrological forcing formats  
+
+By modernizing the MicroMet methodology within a scalable Python framework, `MicroPyzzotMet` expands accessibility to terrain-aware downscaling and supports transparent, reproducible environmental modelling workflows.
 
 
 # Working examples
@@ -130,6 +138,10 @@ The example is configured through the file `micro_config_DEMO_MAIPO.json` and ex
 - Outputs are written as monthly NetCDF files and can be converted into S3M-compatible forcing files.
 
 This demonstration illustrates the typical usage of `MicroPyzzotMet`: a lightweight, configuration-driven workflow capable of producing high-resolution atmospheric forcing fields with minimal user intervention. The Maipo setup can be adapted to other regions by modifying the spatial extent, DEM specifications, and processing period.
+
+## AI usage disclosure
+
+Generative AI tools were used during the development of this project. Specifically, AI assistance was employed for portions of software generation, code refactoring, debugging support, and verification of implementation logic, as well as for language editing and drafting of the manuscript. All generated code was reviewed, tested, and validated by the authors. The authors take full responsibility for the correctness, scientific integrity, and functionality of the software and manuscript.
 
 # Acknowledgements
 
