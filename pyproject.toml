@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "micropyzzotmet"
+version = "0.1.0"
+description = "Lightweight Python package for meteorological downscaling over complex terrain"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Riccardo Barella" }
+]
+dependencies = [
+  "numpy",
+  "pandas",
+  "xarray",
+  "rasterio",
+  "rioxarray",
+  "pyproj",
+  "scipy",
+  "pvlib",
+  "netCDF4",
+  "joblib",
+  "tqdm",
+  "affine",
+  "matplotlib",
+  "zarr"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff",
+  "build"
+]
+
+[project.scripts]
+micropyzzotmet = "micropyzzotmet.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+micropyzzotmet = ["auxiliary_data/*.nc"]

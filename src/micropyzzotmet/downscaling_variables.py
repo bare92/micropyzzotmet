@@ -19,7 +19,7 @@ import pandas as pd
 from rasterio.warp import reproject, Resampling
 import matplotlib.pyplot as plt
 from affine import Affine
-from utils import write_downscaled_to_netcdf
+from .utils import write_downscaled_to_netcdf
 from scipy.stats import linregress
 from scipy import interpolate as spint
 import copy
@@ -856,7 +856,233 @@ def downscale_RH(
     root.close()
     print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
 
+def downscale_Precipitation(
+    dem_path,
+    curr_climate_file,
+    output_folder_P,
+    custom_gamma=None,
+    dem_nodata=None,
+    time_chunk=24,
+    write_buffer_steps=None
+):
+    """
+    Downscale precipitation to a high-resolution DEM grid using elevation modulation.
 
+    This function reads ERA5/ERA5-Land precipitation, reprojects it to the DEM grid,
+    and applies an elevation-based scaling controlled by monthly gamma coefficients.
+
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to DEM GeoTIFF.
+    curr_climate_file : str or pathlib.Path
+        Path to monthly climate NetCDF containing ``tp`` (or ``precip``).
+    output_folder_P : str or pathlib.Path
+        Output directory where the monthly NetCDF will be saved.
+    custom_gamma : array-like of length 12, optional
+        Monthly precipitation scaling coefficients in 1/km.
+    dem_nodata : float or int, optional
+        Value representing nodata in the DEM. If None, NaNs are used.
+    time_chunk : int, default 24
+        Number of timesteps to process/write per block.
+    write_buffer_steps : int, optional
+        Backward-compatible alias for ``time_chunk``.
+
+    Returns
+    -------
+    None
+        Writes a NetCDF file to disk and returns.
+    """
+
+    import os
+    import numpy as np
+    import xarray as xr
+    import pandas as pd
+    import rasterio
+    from rasterio.warp import reproject, Resampling
+    from rasterio.transform import from_origin
+    from rasterio.crs import CRS
+    from tqdm import tqdm
+    import netCDF4 as nc
+
+    if write_buffer_steps is not None:
+        time_chunk = int(write_buffer_steps)
+
+    geopotential_path = './auxiliary_data/geopotential3.nc'
+    os.makedirs(output_folder_P, exist_ok=True)
+
+    gamma_nohem = np.array([0.35, 0.35, 0.35, 0.30, 0.25, 0.20, 0.20, 0.20, 0.20, 0.25, 0.30, 0.35]) / 1000.0
+    gamma_sohem = np.array([0.25, 0.20, 0.20, 0.20, 0.20, 0.25, 0.30, 0.35, 0.35, 0.35, 0.30, 0.25]) / 1000.0
+
+    # DEM + target grid
+    with rasterio.open(dem_path) as dem_src:
+        dem = dem_src.read(1).astype(np.float32)
+        dem_mask = (dem == dem_nodata) if dem_nodata is not None else np.isnan(dem)
+        dem_crs = dem_src.crs
+        dem_transform = dem_src.transform
+        height, width = dem.shape
+
+    x_coords = np.arange(width) * dem_transform.a + dem_transform.c + dem_transform.a / 2
+    y_coords = np.arange(height) * dem_transform.e + dem_transform.f + dem_transform.e / 2
+
+    # Climate input (chunked by time)
+    ds = xr.open_dataset(curr_climate_file, chunks={"valid_time": 1, "time": 1})
+    if "tp" in ds:
+        precip = ds["tp"]
+    elif "precip" in ds:
+        precip = ds["precip"]
+    else:
+        raise ValueError("Missing precipitation variable: expected 'tp' or 'precip' in NetCDF")
+
+    if "valid_time" in ds:
+        time = ds.valid_time.values
+        time_dim = "valid_time"
+    else:
+        time = ds.time.values
+        time_dim = "time"
+
+    lon = ds.longitude.values
+    lat = ds.latitude.values
+    lon2d, lat2d = np.meshgrid(lon, lat)
+
+    month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
+    out_nc = os.path.join(output_folder_P, f"precipitation_{month_tag}.nc")
+    if os.path.exists(out_nc):
+        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+        return
+
+    center_lat = (lat[0] + lat[-1]) / 2
+    gamma_all = np.array(custom_gamma) / 1000.0 if custom_gamma else (gamma_sohem if center_lat < 0 else gamma_nohem)
+
+    # Geopotential -> ERA-grid elevation
+    geop = xr.open_dataset(geopotential_path)
+    if "z" not in geop:
+        raise ValueError("Missing 'z' in geopotential file")
+
+    z0 = np.zeros_like(lat2d, dtype=np.float32)
+    for i in range(lat2d.shape[0]):
+        for j in range(lat2d.shape[1]):
+            try:
+                Z = geop.z.sel(latitude=lat2d[i, j], longitude=lon2d[i, j], method="nearest", tolerance=0.5)
+                z0[i, j] = Z.values.item() / 9.81
+            except:
+                z0[i, j] = np.nan
+
+    dx = np.abs(lon[1] - lon[0])
+    dy = np.abs(lat[1] - lat[0])
+    era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
+    era_crs = CRS.from_epsg(4326)
+
+    time_pd = pd.to_datetime(time)
+    ntime = len(time_pd)
+
+    # ---------- create output NetCDF ONCE (CF/GDAL/QGIS compliant CRS) ----------
+    os.makedirs(os.path.dirname(out_nc), exist_ok=True)
+    root = nc.Dataset(out_nc, "w", format="NETCDF4")
+
+    root.createDimension("time", ntime)
+    root.createDimension("y", height)
+    root.createDimension("x", width)
+
+    xv = root.createVariable("x", "f4", ("x",))
+    yv = root.createVariable("y", "f4", ("y",))
+    tv = root.createVariable("time", "f8", ("time",))
+
+    xv[:] = x_coords.astype(np.float32)
+    yv[:] = y_coords.astype(np.float32)
+
+    xv.standard_name = "projection_x_coordinate"
+    xv.units = "m"
+    xv.axis = "X"
+
+    yv.standard_name = "projection_y_coordinate"
+    yv.units = "m"
+    yv.axis = "Y"
+
+    tv.units = "seconds since 1970-01-01 00:00:00"
+    tv.calendar = "standard"
+
+    p_var = root.createVariable(
+        "P", "f4", ("time", "y", "x"),
+        fill_value=np.float32(np.nan),
+        chunksizes=(min(time_chunk, ntime), min(256, height), min(256, width))
+    )
+    p_var.units = "mm"
+    p_var.description = "Downscaled precipitation"
+
+    # CF grid mapping for QGIS
+    spatial_ref = root.createVariable("spatial_ref", "i4")
+    if dem_crs is not None:
+        try:
+            for k, v in dem_crs.to_cf().items():
+                spatial_ref.setncattr(k, v)
+        except Exception:
+            pass
+        wkt = dem_crs.to_wkt()
+    else:
+        wkt = ""
+
+    spatial_ref.setncattr("crs_wkt", wkt)
+    spatial_ref.setncattr("spatial_ref", wkt)
+
+    gt = f"{dem_transform.c} {dem_transform.a} {dem_transform.b} {dem_transform.f} {dem_transform.d} {dem_transform.e}"
+    spatial_ref.setncattr("GeoTransform", gt)
+
+    p_var.setncattr("grid_mapping", "spatial_ref")
+    root.setncattr("Conventions", "CF-1.8")
+
+    # Write full time coordinate once
+    tv[:] = nc.date2num([pd.Timestamp(t).to_pydatetime() for t in time_pd], units=tv.units, calendar=tv.calendar)
+
+    # ---------- compute + write in chunks ----------
+    pbar = tqdm(total=ntime, desc="Downscaling precipitation (chunked)")
+
+    start = 0
+    while start < ntime:
+        end = min(start + time_chunk, ntime)
+        B = end - start
+
+        p_chunk = np.empty((B, height, width), dtype=np.float32)
+
+        for kk, ti in enumerate(range(start, end)):
+            date = pd.Timestamp(time_pd[ti])
+            month_index = date.month - 1
+            gamma = gamma_all[month_index]
+
+            precip_raw = precip.isel({time_dim: ti}).values.astype(np.float32, copy=False)
+
+            p0_resampled = np.empty_like(dem, dtype=np.float32)
+            z0_resampled = np.empty_like(dem, dtype=np.float32)
+
+            reproject(
+                precip_raw, p0_resampled,
+                src_transform=era_transform, src_crs=era_crs,
+                dst_transform=dem_transform, dst_crs=dem_crs,
+                resampling=Resampling.bilinear
+            )
+            reproject(
+                z0, z0_resampled,
+                src_transform=era_transform, src_crs=era_crs,
+                dst_transform=dem_transform, dst_crs=dem_crs,
+                resampling=Resampling.bilinear
+            )
+
+            dz = dem - z0_resampled
+            precip_downscaled = p0_resampled * ((1 + gamma * dz) / (1 + np.abs(gamma * dz)))
+
+            precip_downscaled[dem_mask] = np.nan
+            p_chunk[kk, :, :] = precip_downscaled
+
+            del precip_raw, p0_resampled, z0_resampled, dz, precip_downscaled
+            pbar.update(1)
+
+        p_var[start:end, :, :] = p_chunk
+        del p_chunk
+        start = end
+
+    pbar.close()
+    root.close()
+    print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
 
 def downscale_Wind(
     dem_path,

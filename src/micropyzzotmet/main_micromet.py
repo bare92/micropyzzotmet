@@ -26,9 +26,9 @@ import os
 import datetime
 import sys
 import glob
-from get_era5_land import get_era5
-from utils import *
-from downscaling_variables import *
+from .get_era5_land import get_era5
+from .utils import *
+from .downscaling_variables import *
 import time
 from joblib import Parallel, delayed
 
