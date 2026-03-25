@@ -43,21 +43,27 @@ Modern reanalysis products provide continuous global climate information extendi
 
 In contrast to more advanced packages such as `TopoPyScale`, which is designed for detailed terrain-driven heterogeneity and fine-scale modelling [@filhol2023topopyscale], `MicroPyzzotMet` prioritizes computational efficiency and conceptual clarity. This makes it ideal for large-domain experiments, operational workflows, or rapid prototyping, while still remaining compatible with higher-resolution approaches when more elaborate topographic corrections are required.
 
+# State of the field
+
+Global climate reanalyses such as ERA5 and ERA5-Land provide long-term, spatially consistent meteorological datasets, but their coarse spatial resolution (9–31 km) limits their direct use in complex terrain, where topography strongly modulates near-surface climate. Downscaling is therefore required to generate meteorological forcing suitable for cryospheric and hydrological applications.
+
+A range of approaches exists, spanning empirical corrections to physically based methods. Tools such as TopoPyScale [@filhol2023topopyscale], based on the TopoSCALE and TopoSUB frameworks [@fiddesTopoSCALEDownscalingGridded2014; @fiddesTopoSUBToolEfficient2012], apply terrain-aware downscaling using vertical atmospheric profiles, 3D interpolation, and topographic clustering. These methods enable detailed reconstruction of fine-scale meteorological variability, particularly in alpine environments.
+
+However, such approaches typically require multiple atmospheric variables, preprocessing steps, and non-trivial computational resources. For large domains, long simulations, or operational workflows, these requirements may become limiting.
+
+In this context, the MicroMet formulation [@liston2006meteorological] provides a widely used alternative based on physically informed empirical corrections (e.g., lapse rates, radiation geometry, and precipitation–elevation relationships) applied directly to near-surface variables. Despite its continued relevance, modern implementations of this approach that integrate with current Python-based, cloud-native data ecosystems remain limited.
+
 # Statement of need
 
-`MicroPyzzotMet` is an open-source Python package for downscaling meteorological variables from reanalysis climate datasets. It is inspired by the MicroMet methodology [@liston2006meteorological] but reimplemented in a modern Python framework, making the workflow more accessible, flexible, and easier to integrate in contemporary data-processing pipelines.
+MicroPyzzotMet is an open-source Python package for downscaling meteorological variables from reanalysis datasets. It builds on the MicroMet methodology [@liston2006meteorological] and reimplements it within a modern, modular Python framework, improving accessibility, flexibility, and integration with contemporary data-processing pipelines.
 
-The increasing availability of atmospheric reanalyses—such as ERA5 and ERA5-Land at 25 km and 9 km spatial resolution—has enabled a wide range of cryospheric and hydrological studies. However, these coarse spatial grids remain inadequate for mountain regions, where elevation, slope, and aspect strongly modulate near-surface climate. Tools such as `TopoPyScale` [@filhol2023topopyscale], based on the TopoSCALE and TopoSUB approaches [@fiddesTopoSCALEDownscalingGridded2014; @fiddesTopoSUBToolEfficient2012], address this limitation by applying sophisticated 3-D interpolation schemes, multi-level atmospheric corrections, and DEM segmentation into terrain clusters. These methods allow detailed reconstruction of fine-scale meteorological patterns, especially over complex alpine terrain.
+The package is designed for applications where computational efficiency and scalability are critical, such as large spatial domains, high temporal resolution forcing, or multi-decadal simulations. It applies MicroMet-inspired corrections—including lapse-rate adjustments, radiative geometry, vapor-pressure relationships, and precipitation–elevation scaling—using only the set of variables typically available in standard reanalysis products.
 
-Yet not all applications require this level of complexity. For coarser target resolutions (e.g., 250–500 m), for large domains processed at high temporal frequency, or for long climatological time series, the computational and data requirements of advanced downscaling frameworks may become limiting. In these cases, the original MicroMet methodology offers an attractive balance between physical robustness and computational simplicity.
+A key feature of MicroPyzzotMet is its integration with EarthDataHub [@EarthDataHub2025], which provides global datasets such as ERA5-Land in cloud-native Zarr format. This enables efficient data access and scalable processing through Xarray and Dask, reducing both I/O overhead and storage requirements.
 
-`MicroPyzzotMet` builds upon this philosophy. It applies lapse-rate corrections, radiative geometry adjustments, vapor-pressure formulations, and precipitation-elevation relationships following MicroMet, using only the set of climate variables typically available in major reanalysis datasets. This makes the tool broadly applicable, lightweight, and extremely fast, while still delivering spatially coherent meteorological fields suitable for surface energy and mass-balance modelling.
+By combining a lightweight methodological approach with modern data infrastructure, MicroPyzzotMet fills the gap between computationally intensive terrain-resolving frameworks and coarse-resolution reanalysis data. It provides a practical solution for generating spatially coherent meteorological forcing suitable for surface energy- and mass-balance modelling.
 
-A key feature of `MicroPyzzotMet` is its integration with EarthDataHub [@EarthDataHub2025], which distributes global reanalysis datasets—including ERA5-Land—preconverted into Zarr format. This enables efficient cloud-native data access and processing through Xarray/Dask, greatly accelerating workflows and reducing storage overhead.
-
-\autoref{fig:downscaling_example} illustrates an example for the Maipo region in Chile, comparing native ERA5-Land fields to `MicroPyzzotMet` downscaled products for daily air temperature and incoming shortwave radiation.
-
-![In the figure are presented two examples of downscaled variables—daily air temperature and shortwave incoming radiation—over the Maipo region in Chile on January 1, 2017. Panels a) and c) show the native ERA5-Land fields at 9 km resolution, overlaid with the DEM used for downscaling at 50 m resolution. Panels b) and d) show the corresponding fields produced by MicroPyzzotMet. \label{fig:downscaling_example}](downscaling_examples.png)
+\autoref{fig:downscaling_example} illustrates an example for the Maipo region in Chile, comparing native ERA5-Land fields to downscaled air temperature and incoming shortwave radiation.
 
 # Toolbox methods and structure
 
