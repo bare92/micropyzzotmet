@@ -298,7 +298,8 @@ def run_micropezzomet(config_path):
         
     
     era_path = config["era_file"]
-    pat_token = config["earthdatahub_pat"]
+    pat_token = config.get("earthdatahub_pat")
+    netrc_machine = config.get("earthdatahub_machine", "earthdatahub.com")
     aggregate_daily = config["aggregate_daily"]
     jobs_downscaling = config["jobs_parallel_downscale"]
     jobs_download = config["jobs_parallel_download"]
@@ -318,7 +319,8 @@ def run_micropezzomet(config_path):
             output_dir=os.path.join(working_directory, 'inputs/climate'),
             PAT=pat_token,
             jobs_download=jobs_download,
-            aggregate_daily=aggregate_daily
+            aggregate_daily=aggregate_daily,
+            machine=netrc_machine
         )
 
     compute_slope_aspect(dem_path, working_directory)

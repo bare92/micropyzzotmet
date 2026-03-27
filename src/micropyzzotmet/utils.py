@@ -24,6 +24,79 @@ from pyproj import Transformer
 from rasterio.enums import Resampling
 from affine import Affine
 from tempfile import TemporaryDirectory
+from netrc import netrc
+from urllib.parse import quote
+
+
+def get_earthdatahub_credentials(machine="earthdatahub.com"):
+    """
+    Load EarthDataHub credentials from ~/.netrc.
+
+    Parameters
+    ----------
+    machine : str, default "earthdatahub.com"
+        Machine entry name in ~/.netrc.
+
+    Returns
+    -------
+    tuple[str, str]
+        (login, password/token) read from ~/.netrc.
+
+    Raises
+    ------
+    ValueError
+        If credentials cannot be found for the requested machine.
+    """
+    try:
+        auth = netrc().authenticators(machine)
+    except Exception as exc:
+        raise ValueError(
+            f"Unable to read ~/.netrc for machine '{machine}'."
+        ) from exc
+
+    if auth is None:
+        raise ValueError(
+            f"No ~/.netrc credentials found for machine '{machine}'."
+        )
+
+    login, _, password = auth
+    if not login or not password:
+        raise ValueError(
+            f"Invalid ~/.netrc credentials for machine '{machine}': missing login or password."
+        )
+
+    return login, password
+
+
+def build_earthdatahub_url(dataset_path, pat=None, machine="earthdatahub.com"):
+    """
+    Build an authenticated EarthDataHub URL for xarray/fsspec access.
+
+    Parameters
+    ----------
+    dataset_path : str
+        Dataset path under data.earthdatahub.destine.eu (without leading slash).
+    pat : str, optional
+        Explicit PAT token. If None, credentials are read from ~/.netrc.
+    machine : str, default "earthdatahub.com"
+        Machine entry name in ~/.netrc.
+
+    Returns
+    -------
+    str
+        HTTPS URL embedding credentials for authenticated access.
+    """
+    if pat:
+        login = "edh"
+        password = pat
+    else:
+        login, password = get_earthdatahub_credentials(machine=machine)
+
+    safe_login = quote(str(login), safe="")
+    safe_password = quote(str(password), safe="")
+    dataset_path = dataset_path.lstrip("/")
+
+    return f"https://{safe_login}:{safe_password}@data.earthdatahub.destine.eu/{dataset_path}"
 
 
 def parse_yes_no_flag(value, var_name=""):
@@ -278,7 +351,7 @@ def download_and_save_dem_from_config(config):
 
     output_filename = config.get("output_filename_dem", "downloaded_dem.tif")
     output_path = os.path.join(output_folder, output_filename)
-    pat = config["earthdatahub_pat"]
+    pat = config.get("earthdatahub_pat")
 
     # Transform input extent to EPSG:4326
     transformer_to_4326 = Transformer.from_crs(f"EPSG:{epsg}", "EPSG:4326", always_xy=True)
@@ -293,7 +366,11 @@ def download_and_save_dem_from_config(config):
     lat_max_buf = lat_max + buffer_deg
 
     # Load Copernicus DEM
-    url = f"https://edh:{pat}@data.earthdatahub.destine.eu/copernicus-dem/GLO-30-v0.zarr"
+    url = build_earthdatahub_url(
+        "copernicus-dem/GLO-30-v0.zarr",
+        pat=pat,
+        machine=config.get("earthdatahub_machine", "earthdatahub.com")
+    )
     ds = xr.open_dataset(
         url,
         engine="zarr",

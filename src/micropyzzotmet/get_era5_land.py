@@ -23,6 +23,7 @@ import os
 import rasterio
 from rasterio.warp import transform_bounds
 from joblib import Parallel, delayed
+from .utils import build_earthdatahub_url
 
 
 def is_valid_netcdf(file_path):
@@ -223,7 +224,7 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
     ds_surface.to_netcdf(surface_file)
 
 
-def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, jobs_download=1, aggregate_daily=False):
+def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT=None, jobs_download=1, aggregate_daily=False, machine="earthdatahub.com"):
     """
     Download and subset ERA5-Land data from a Zarr store and save it as monthly NetCDF files.
 
@@ -243,12 +244,15 @@ def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, jobs_dow
         Path to a reference GeoTIFF used to define the spatial extent.
     output_dir : str
         Output directory where monthly NetCDF files are written.
-    PAT : str
+    PAT : str, optional
         Personal Access Token used to access the EarthDataHub endpoint.
+        If not provided, credentials are read from ``~/.netrc``.
     jobs_download : int, optional
         Number of parallel jobs (currently not used; joblib uses all cores with n_jobs=-1).
     aggregate_daily : bool, optional
         If True, output files contain daily aggregated variables.
+    machine : str, optional
+        Machine entry name in ``~/.netrc`` used when ``PAT`` is not provided.
 
     Returns
     -------
@@ -262,7 +266,11 @@ def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT, jobs_dow
     subset_dict = {"latitude": lat_slice, "longitude": lon_slice}
 
     variables = ['d2m', 't2m', 'sp', 'ssrd', 'strd', 'tp', 'u10', 'v10']
-    url = f"https://edh:{PAT}@data.earthdatahub.destine.eu/era5/reanalysis-era5-land-no-antartica-v0.zarr"
+    url = build_earthdatahub_url(
+        "era5/reanalysis-era5-land-no-antartica-v0.zarr",
+        pat=PAT,
+        machine=machine
+    )
 
     ds = xr.open_dataset(url, chunks={}, engine="zarr").astype("float32")
     ds = ds.sel(**subset_dict)
