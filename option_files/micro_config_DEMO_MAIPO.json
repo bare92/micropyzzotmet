@@ -34,8 +34,8 @@
       "monthly": null
     }
   },
-  "jobs_parallel_downscale": 4,
-  "jobs_parallel_download": 4
+  "jobs_parallel_downscale": 8,
+  "jobs_parallel_download": 8
 }
 
 
