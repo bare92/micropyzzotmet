@@ -1,4 +1,5 @@
 LICENSE.txt
+README.md
 pyproject.toml
 src/micropyzzotmet/__init__.py
 src/micropyzzotmet/cli.py

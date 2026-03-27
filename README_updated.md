@@ -1,35 +1,3 @@
-Metadata-Version: 2.4
-Name: micropyzzotmet
-Version: 0.1.0
-Summary: Lightweight Python package for meteorological downscaling over complex terrain
-Author: Riccardo Barella
-License: MIT
-Requires-Python: >=3.10
-Description-Content-Type: text/markdown
-License-File: LICENSE.txt
-Requires-Dist: numpy==2.2.5
-Requires-Dist: pandas==2.3.3
-Requires-Dist: xarray==2025.4.0
-Requires-Dist: rasterio==1.4.4
-Requires-Dist: rioxarray==0.19.0
-Requires-Dist: pyproj==3.6.1
-Requires-Dist: scipy==1.15.3
-Requires-Dist: pvlib==0.15.0
-Requires-Dist: netCDF4==1.7.4
-Requires-Dist: joblib==1.5.3
-Requires-Dist: tqdm==4.67.3
-Requires-Dist: affine==2.4.0
-Requires-Dist: matplotlib==3.10.8
-Requires-Dist: zarr==2.18.3
-Requires-Dist: fsspec==2026.2.0
-Requires-Dist: s3fs==2026.2.0
-Requires-Dist: dask==2026.3.0
-Provides-Extra: dev
-Requires-Dist: pytest>=8; extra == "dev"
-Requires-Dist: ruff; extra == "dev"
-Requires-Dist: build; extra == "dev"
-Dynamic: license-file
-
 # MicroPyzzotMet
 
 **MicroPyzzotMet** is a Python package for downscaling meteorological variables over complex terrain using a high-resolution DEM and reanalysis forcing (currently focused on ERA5-Land via EarthDataHub). It implements a lightweight, MicroMet-inspired workflow for generating distributed atmospheric forcing fields for snow, cryosphere, hydrology, and mountain-environment applications.
@@ -99,6 +67,27 @@ micropyzzotmet/
 
 ### Recommended: create the virtual environment, then install the package
 
+```bash
+# Create a virtual environment
+python3 -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate
+
+# Upgrade pip to latest version
+pip install --upgrade pip
+
+# Install the project and all dependencies in development mode
+pip install -e .
+
+```
+
+You can check that the CLI is available with:
+
+```bash
+micropyzzotmet --help
+```
+
 ### EarthDataHub credentials
 
 MicroPyzzotMet downloads ERA5-Land and DEM data from [EarthDataHub](https://earthdatahub.destine.eu). You need a personal access token (PAT).
@@ -122,33 +111,6 @@ chmod 600 ~/.netrc
 
 > **Important:** never commit a real EarthDataHub PAT or `~/.netrc` credentials into version control.
 
----
-
-## Installation
-
-### Recommended: create the virtual environment, then install the package
-
-```bash
-# Create a virtual environment
-python3 -m venv .venv
-
-# Activate the virtual environment
-source .venv/bin/activate
-
-# Upgrade pip to latest version
-pip install --upgrade pip
-
-# Install the project and all dependencies in development mode
-pip install -e .
-
-```
-
-You can check that the CLI is available with:
-
-```bash
-micropyzzotmet --help
-```
-
 ### Alternative: install into an existing environment
 
 If you already have a working Python/geospatial environment, you can install directly:
@@ -166,6 +128,7 @@ This route is best for development. For full production runs, make sure the envi
 - joblib / tqdm
 - pvlib
 - fsspec / s3fs / dask (required for EarthDataHub Zarr access)
+- for exact reproducibility, use the pinned versions in `pyproject.toml`
 
 ---
 

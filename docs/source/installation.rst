@@ -1,98 +1,96 @@
 Installation
 ============
 
-This page explains how to install MicroPyzzotMet and create a fully
-functional environment using the provided setup script. This is the
-recommended method because it installs all required scientific libraries
-and ensures compatibility with GDAL, rasterio, xarray, and other core
-dependencies.
+This page describes the installation workflow for the current
+CLI-based MicroPyzzotMet release.
 
 Requirements
 ------------
 
 - Python 3.10+
-- A working Anaconda or Miniconda installation
+- ``pip``
 - Git
+- GDAL command-line tools available on your system, especially ``gdaldem``
 
 Clone the repository
 --------------------
 
-Clone the project from GitHub and enter the folder::
+Clone the project and enter the repository root::
 
     git clone https://github.com/bare92/micropyzzotmet.git
     cd micropyzzotmet
 
-Environment setup (recommended)
+Recommended installation (venv)
 -------------------------------
 
-MicroPyzzotMet provides a setup script that creates a complete conda
-environment named ``microenv`` with all required dependencies.
+Create and activate a local virtual environment, then install the package::
 
-From the project root, run::
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install --upgrade pip
+    pip install -e .
+
+Verify that the CLI entrypoint is available::
+
+    micropyzzotmet --help
+
+The dependency list in ``pyproject.toml`` is pinned to exact versions for
+reproducibility.
+
+Installed Python dependencies
+-----------------------------
+
+The project currently depends on:
+
+- ``numpy``
+- ``pandas``
+- ``xarray``
+- ``rasterio``
+- ``rioxarray``
+- ``pyproj``
+- ``scipy``
+- ``pvlib``
+- ``netCDF4``
+- ``joblib``
+- ``tqdm``
+- ``affine``
+- ``matplotlib``
+- ``zarr``
+- ``fsspec``
+- ``s3fs``
+- ``dask``
+
+EarthDataHub authentication
+---------------------------
+
+DEM and ERA5-Land downloads require EarthDataHub credentials.
+
+You can provide credentials in one of these ways:
+
+1. Set ``earthdatahub_pat`` in your JSON config file.
+2. Configure a ``~/.netrc`` entry for ``earthdatahub.com``.
+
+Example ``~/.netrc``::
+
+    machine earthdatahub.com
+    login YOUR_EDH_USERNAME
+    password YOUR_EDH_PASSWORD
+
+Set secure permissions::
+
+    chmod 600 ~/.netrc
+
+Alternative setup script (conda)
+--------------------------------
+
+If you prefer conda, the repository also includes
+``setup_micropyzzotmet_env.sh``::
 
     chmod +x setup_micropyzzotmet_env.sh
     ./setup_micropyzzotmet_env.sh
 
-The script performs the following steps:
-
-1. Removes any existing ``microenv`` environment.
-2. Configures the conda-forge and defaults channels.
-3. Creates a fresh conda environment with Python 3.10.
-4. Installs all required scientific libraries (see list below).
-5. Optionally installs the Spyder IDE.
-
-Environment details
--------------------
-
-The setup script installs the following Python libraries:
-
-**Core scientific stack**
-
-- ``numpy`` – numerical computation  
-- ``pandas`` – tabular data handling  
-- ``xarray`` – labeled multi-dimensional data (NetCDF, Zarr)  
-- ``scipy`` – scientific utilities  
-
-**Geospatial stack**
-
-- ``gdal`` – raster I/O, projections, file drivers  
-- ``rasterio`` – modern raster reading/writing  
-- ``rioxarray`` – CRS-aware xarray extension  
-- ``pyproj`` – projections and geospatial transforms  
-- ``affine`` – grid coordinate transforms  
-
-**Cloud, chunking, and file formats**
-
-- ``zarr`` – chunked storage  
-- ``fsspec`` – filesystem abstraction  
-- ``s3fs`` – access to S3 and object storage  
-- ``netCDF4`` – NetCDF support  
-- ``h5netcdf`` – HDF5/NetCDF backend  
-
-**Parallel and distributed computing**
-
-- ``dask``  
-- ``distributed``  
-- ``joblib``  
-
-**Model-specific utilities**
-
-- ``pvlib`` – solar radiation and atmospheric modeling  
-- ``matplotlib`` – plotting  
-- ``tqdm`` – progress bars  
-
-**Optional**
-
-- ``spyder`` – IDE installed only if requested in the script  
-
-Activating the environment
---------------------------
-
-If the setup script instructs you to activate the environment, use::
-
-    conda activate microenv
-
-You must activate this environment each time before running MicroPyzzotMet.
+Then follow the script output to activate that environment before running
+``micropyzzotmet``.
 
 
 

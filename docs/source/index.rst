@@ -31,6 +31,9 @@ reanalysis data such as ERA5-Land, with a focus on snow and mountain application
    methods/temperature_downscaling
    methods/radiation_downscaling
    methods/humidity_downscaling
+   methods/precipitation_downscaling
+   methods/wind_downscaling
+   methods/longwave_downscaling
    
 
 .. toctree::
