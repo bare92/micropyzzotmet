@@ -41,23 +41,24 @@ micropyzzotmet/
 ├── pyproject.toml
 ├── README.md
 ├── LICENSE.txt
-├── micro_config_DEMO_MAIPO.json
-├── micro_config_alps.json
-├── setup_micropyzzotmet_env.sh
+├── auto_run_Paloma.py
 ├── run_micromet_DEMO_MAIPO.sh
 ├── run_micromet_alps.sh
 ├── auxiliary_data/
 │   └── geopotential3.nc
 ├── docs/
 ├── JOSS/
+├── option_files/
+│   ├── micro_config_DEMO_MAIPO.json
+│   └── micro_config_alps.json
 └── src/
-    └── micropyzzotmet/
-        ├── __init__.py
-        ├── cli.py
-        ├── main_micromet.py
-        ├── get_era5_land.py
-        ├── downscaling_variables.py
-        └── utils.py
+  └── micropyzzotmet/
+    ├── __init__.py
+    ├── cli.py
+    ├── main_micromet.py
+    ├── get_era5_land.py
+    ├── downscaling_variables.py
+    └── utils.py
 ```
 
 ---
@@ -66,21 +67,48 @@ micropyzzotmet/
 
 ### Recommended: create the virtual environment, then install the package
 
-The safest way to run the full workflow is to use the provided setup script, because the code relies on a geospatial/scientific stack that includes GDAL, rasterio, xarray, zarr, dask/fsspec-related tooling, and command-line GDAL utilities such as `gdaldem`.
+### EarthDataHub credentials
 
-From the repository root:
+MicroPyzzotMet downloads ERA5-Land and DEM data from [EarthDataHub](https://earthdatahub.destine.eu). You need a personal access token (PAT).
 
-```bash
-chmod +x setup_micropyzzotmet_env.sh
-./setup_micropyzzotmet_env.sh
+You can provide it in two ways:
+
+**Option A — in the config file** (recommended):
+```json
+"earthdatahub_pat": "<YOUR_EDH_PAT_HERE>"
 ```
 
-Then activate the environment and install the package in editable mode:
+**Option B — via `~/.netrc`**:
+```bash
+cat > ~/.netrc << 'EOF'
+machine earthdatahub.com
+login YOUR_EDH_USERNAME
+password YOUR_EDH_PASSWORD
+EOF
+chmod 600 ~/.netrc
+```
+
+> **Important:** never commit a real EarthDataHub PAT or `~/.netrc` credentials into version control.
+
+---
+
+## Installation
+
+### Recommended: create the virtual environment, then install the package
 
 ```bash
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate microenv
+# Create a virtual environment
+python3 -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate
+
+# Upgrade pip to latest version
+pip install --upgrade pip
+
+# Install the project and all dependencies in development mode
 pip install -e .
+
 ```
 
 You can check that the CLI is available with:
@@ -91,7 +119,7 @@ micropyzzotmet --help
 
 ### Alternative: install into an existing environment
 
-If you already have a working Python/geospatial environment, you can install directly from `pyproject.toml`:
+If you already have a working Python/geospatial environment, you can install directly:
 
 ```bash
 pip install -e .
@@ -105,7 +133,7 @@ This route is best for development. For full production runs, make sure the envi
 - xarray / zarr / netCDF4
 - joblib / tqdm
 - pvlib
-- any additional cloud/Zarr dependencies required by the EarthDataHub workflow
+- fsspec / s3fs / dask (required for EarthDataHub Zarr access)
 
 ---
 
@@ -128,10 +156,10 @@ micropyzzotmet --help
 
 ### 3. Prepare a configuration file
 
-MicroPyzzotMet is driven by a JSON config file. Two example configs are included:
+MicroPyzzotMet is driven by a JSON config file. Two example configs are included in `option_files/`:
 
-- `micro_config_DEMO_MAIPO.json`
-- `micro_config_alps.json`
+- `option_files/micro_config_DEMO_MAIPO.json`
+- `option_files/micro_config_alps.json`
 
 A typical config includes:
 
@@ -139,7 +167,8 @@ A typical config includes:
 - `dem_file`: path to an existing DEM, or `null` to trigger DEM download
 - `download_dem_extent`, `download_dem_epsg`, `download_dem_resolution`, `output_filename_dem`: DEM download settings used when `dem_file` is `null`
 - `era_file`: currently used as a switch to skip automatic ERA5-Land download
-- `earthdatahub_pat`: EarthDataHub personal access token
+- `earthdatahub_pat`: EarthDataHub personal access token (alternative to `~/.netrc`)
+- `earthdatahub_machine`: netrc machine name (default: `"earthdatahub.com"`, optional)
 - `variables_to_downscale`: `"y"` / `"n"` flags for each variable
 - `start_date`, `end_date`: run period
 - `aggregate_daily`: whether ERA5-Land inputs are aggregated to daily values
@@ -171,16 +200,16 @@ A sanitized example:
     "t_air": "y",
     "sw_radiation": "y",
     "relative_humidity": "y",
-    "precipitation": "n",
-    "wind": "n",
-    "lw_radiation": "n"
+    "precipitation": "y",
+    "wind": "y",
+    "lw_radiation": "y"
   },
   "start_date": "2017-04-01",
   "end_date": "2017-07-31",
   "aggregate_daily": "y",
   "time_chunk": 24,
   "dem_nodata": -32768,
-  "generate_s3m_input": "n",
+  "generate_s3m_input": "y",
   "custom_lapse_rates": {
     "temperature": {
       "monthly": [8.1, 7.9, 7.78, 7.76, 7.9, 8.0, 8.2, 8.4, 8.6, 8.7, 8.4, 8.32]
@@ -190,18 +219,16 @@ A sanitized example:
     }
   },
   "jobs_parallel_downscale": 4,
-  "jobs_parallel_download": 1
+  "jobs_parallel_download": 4
 }
 ```
-
-> **Important:** never commit a real EarthDataHub PAT into version control.
 
 ### 4. Run the workflow
 
 From the repository root:
 
 ```bash
-micropyzzotmet micro_config_DEMO_MAIPO.json
+micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
 ```
 
 You can also point to any other JSON config:
@@ -284,17 +311,15 @@ Typical monthly outputs are written as NetCDF files inside the variable-specific
 
 ## Example launcher script
 
-A minimal shell launcher using the **current CLI** looks like this:
+A minimal shell launcher using the **current CLI** and `.venv` looks like this:
 
 ```bash
 #!/bin/bash
 set -e
 
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate microenv
-
+source /path/to/micropyzzotmet/.venv/bin/activate
 cd /path/to/micropyzzotmet
-micropyzzotmet micro_config_DEMO_MAIPO.json
+micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
 ```
 
 ---

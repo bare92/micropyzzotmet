@@ -12,6 +12,9 @@ tqdm
 affine
 matplotlib
 zarr
+fsspec
+s3fs
+dask
 
 [dev]
 pytest>=8
