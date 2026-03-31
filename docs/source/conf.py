@@ -127,5 +127,80 @@ autodoc_mock_imports = MOCK_MODULES
 # -------------------------------------------------------------------------
 # HTML OUTPUT
 # -------------------------------------------------------------------------
+# -------------------------------------------------------------------------
+# HTML OUTPUT & THEME CONFIGURATION
+# -------------------------------------------------------------------------
 html_theme = "sphinx_rtd_theme"
+
+html_theme_options = {
+    # ReadTheDocs theme options
+    "logo_only": False,
+    "prev_next_buttons_location": "bottom",
+    "style_external_links": True,
+    "vcs_pageview_mode": "view",  # Link to code on GitHub
+    "style_nav_header_background": "#2980B9",  # Professional blue
+    # Sidebar options
+    "sticky_navigation": True,
+    "navigation_depth": 4,
+    "includehidden": True,
+    "titles_only": False,
+}
+
+html_logo = None
+html_favicon = None
+html_static_path = ["_static"]
+html_context = {
+    # Add custom context for footer, etc.
+    "display_github": True,
+    "github_user": "bare92",
+    "github_repo": "micropyzzotmet",
+    "github_version": "main",
+    "conf_py_path": "/docs/source/",
+}
+
+# -------------------------------------------------------------------------
+# Additional Extensions & Settings
+# -------------------------------------------------------------------------
+# Add more helpful extensions
+if "sphinx.ext.intersphinx" not in extensions:
+    extensions.append("sphinx.ext.intersphinx")
+
+# Intersphinx mapping for cross-referencing external docs
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "xarray": ("https://docs.xarray.dev/en/stable", None),
+    "pandas": ("https://pandas.pydata.org/docs", None),
+}
+
+# -------------------------------------------------------------------------
+# AUTODOC SETTINGS
+# -------------------------------------------------------------------------
+autodoc_typehints = "description"
+autodoc_default_options = {
+    "members": True,
+    "member-order": "bysource",
+    "undoc-members": True,
+    "show-inheritance": True,
+    "inherited-members": True,
+}
+
+# -------------------------------------------------------------------------
+# ADDITIONAL CONFIG
+# -------------------------------------------------------------------------
+# Suppress certain warnings
+suppress_warnings = ["ref.python"]
+
+# Use index.html in directories
+html_use_index = True
+html_split_index = False
+
+# Output file base name for HTML help builder.
+htmlhelp_basename = "micropyzzotmetdoc"
+
+# Favicon
+html_favicon = None
+
+# Caching
+today_fmt = "%b %d, %Y"
 
