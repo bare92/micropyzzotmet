@@ -1204,7 +1204,9 @@ def convert_micromet_to_s3m_inputs(
                 paths, var_in = var_paths[var_name]
 
                 # Open multi-file dataset (lazy); read only one timestep -> memory OK
-                ds_in = xr.open_mfdataset(paths, combine="by_coords", chunks={"time": 1, "valid_time": 1})
+                ds_in = xr.open_mfdataset(paths, combine="by_coords", chunks={})
+                _time_chunks = {d: 1 for d in ds_in.dims if d in ("time", "valid_time")}
+                ds_in = ds_in.chunk(_time_chunks)
 
                 # Identify time coordinate name used in this dataset
                 if "time" in ds_in.coords:
