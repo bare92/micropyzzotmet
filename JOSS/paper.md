@@ -75,7 +75,7 @@ The repository also includes a complete example workflow for the Maipo basin in 
 
 # AI usage disclosure
 
-Generative AI tools ([specify tool/model and version before submission]) were used in software development for limited code refactoring and debugging assistance, and in the manuscript and documentation for language editing and limited drafting support. All AI-assisted outputs were reviewed, edited, tested, and validated by the authors, who made the scientific and software-design decisions and take full responsibility for the final software and paper.
+Generative AI tools (Claude and ChatGPT) were used in software development for limited code refactoring and debugging assistance, and in the manuscript and documentation for language editing and limited drafting support. All AI-assisted outputs were reviewed, edited, tested, and validated by the authors, who made the scientific and software-design decisions and take full responsibility for the final software and paper.
 
 # Acknowledgements
 
