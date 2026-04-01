@@ -25,6 +25,14 @@ from scipy import interpolate as spint
 import copy
 import pvlib
 import netCDF4 as nc
+from importlib.resources import files, as_file
+
+
+def load_packaged_geopotential_dataset() -> xr.Dataset:
+    resource = files("micropyzzotmet").joinpath("auxiliary_data/geopotential3.nc")
+    with as_file(resource) as geopotential_path:
+        with xr.open_dataset(geopotential_path) as dataset:
+            return dataset.load()
 
 
 
@@ -96,8 +104,6 @@ def downscale_Temperature(
         """
 
 
-    geopotential_path = './auxiliary_data/geopotential3.nc'
-
     lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
     lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
 
@@ -144,7 +150,7 @@ def downscale_Temperature(
         print(f"Output already exists: {out_nc}. Skipping downscaling.")
         return
 
-    geop = xr.open_dataset(geopotential_path)
+    geop = load_packaged_geopotential_dataset()
     assert "z" in geop, "Missing 'z' in geopotential file"
 
     z0 = np.zeros_like(lat2d, dtype=np.float32)
@@ -651,7 +657,6 @@ def downscale_RH(
     import netCDF4 as nc
 
     a, b, c = 611.21, 17.502, 240.97
-    geopotential_path = './auxiliary_data/geopotential3.nc'
     os.makedirs(output_folder_RH, exist_ok=True)
 
     # Lapse rates
@@ -703,7 +708,7 @@ def downscale_RH(
     vp_coeff_all = vp_coeff_sohem if center_lat < 0 else vp_coeff_nohem
 
     # Geopotential -> z0 (same approach as your original, computed once)
-    geop = xr.open_dataset(geopotential_path)
+    geop = load_packaged_geopotential_dataset()
     z0 = np.zeros_like(lat2d, dtype=np.float32)
     for i in range(lat2d.shape[0]):
         for j in range(lat2d.shape[1]):
@@ -908,7 +913,6 @@ def downscale_Precipitation(
     if write_buffer_steps is not None:
         time_chunk = int(write_buffer_steps)
 
-    geopotential_path = './auxiliary_data/geopotential3.nc'
     os.makedirs(output_folder_P, exist_ok=True)
 
     gamma_nohem = np.array([0.35, 0.35, 0.35, 0.30, 0.25, 0.20, 0.20, 0.20, 0.20, 0.25, 0.30, 0.35]) / 1000.0
@@ -955,7 +959,7 @@ def downscale_Precipitation(
     gamma_all = np.array(custom_gamma) / 1000.0 if custom_gamma else (gamma_sohem if center_lat < 0 else gamma_nohem)
 
     # Geopotential -> ERA-grid elevation
-    geop = xr.open_dataset(geopotential_path)
+    geop = load_packaged_geopotential_dataset()
     if "z" not in geop:
         raise ValueError("Missing 'z' in geopotential file")
 
@@ -1463,8 +1467,6 @@ ValueError
     from rasterio.crs import CRS
     import netCDF4 as nc
 
-    geopotential_path = './auxiliary_data/geopotential3.nc'
-
     lapse_rate_nohem = np.array([4.4, 5.9, 7.1, 7.8, 8.1, 8.2, 8.1, 8.1, 7.7, 6.8, 5.5, 4.7]) / 1000.0
     lapse_rate_sohem = np.array([8.1, 8.1, 7.7, 6.8, 5.5, 4.7, 4.4, 5.9, 7.1, 7.8, 8.1, 8.2]) / 1000.0
     vp_coeff_nohem  = np.array([0.41, 0.42, 0.40, 0.39, 0.38, 0.36, 0.33, 0.33, 0.36, 0.37, 0.40, 0.40]) / 1000.0
@@ -1517,7 +1519,7 @@ ValueError
         return
 
     # geopotential -> z on ERA grid (same as your original)
-    geop = xr.open_dataset(geopotential_path)
+    geop = load_packaged_geopotential_dataset()
     z = np.zeros_like(lat2d, dtype=np.float32)
     for i in range(lat2d.shape[0]):
         for j in range(lat2d.shape[1]):

@@ -13,3 +13,7 @@ src/micropyzzotmet.egg-info/dependency_links.txt
 src/micropyzzotmet.egg-info/entry_points.txt
 src/micropyzzotmet.egg-info/requires.txt
 src/micropyzzotmet.egg-info/top_level.txt
+src/micropyzzotmet/auxiliary_data/geopotential3.nc
+tests/test_cli.py
+tests/test_imports.py
+tests/test_utils.py

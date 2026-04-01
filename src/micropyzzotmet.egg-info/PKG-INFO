@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: micropyzzotmet
-Version: 0.1.0
+Version: 0.1.4
 Summary: Lightweight Python package for meteorological downscaling over complex terrain
 Author: Riccardo Barella
 License: MIT
@@ -12,7 +12,7 @@ Requires-Dist: pandas==2.3.3
 Requires-Dist: xarray==2025.4.0
 Requires-Dist: rasterio==1.4.4
 Requires-Dist: rioxarray==0.19.0
-Requires-Dist: pyproj==3.6.1
+Requires-Dist: pyproj==3.7.2
 Requires-Dist: scipy==1.15.3
 Requires-Dist: pvlib==0.15.0
 Requires-Dist: netCDF4==1.7.4
@@ -21,18 +21,27 @@ Requires-Dist: tqdm==4.67.3
 Requires-Dist: affine==2.4.0
 Requires-Dist: matplotlib==3.10.8
 Requires-Dist: zarr==2.18.3
+Requires-Dist: numcodecs==0.15.1
 Requires-Dist: fsspec==2026.2.0
 Requires-Dist: s3fs==2026.2.0
 Requires-Dist: dask==2026.3.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: pytest-cov>=5; extra == "dev"
 Requires-Dist: ruff; extra == "dev"
 Requires-Dist: build; extra == "dev"
+Provides-Extra: docs
+Requires-Dist: sphinx>=7.0; extra == "docs"
+Requires-Dist: sphinx-rtd-theme>=1.3; extra == "docs"
+Requires-Dist: sphinx-autodoc-typehints>=1.24; extra == "docs"
+Requires-Dist: sphinx-copybutton>=0.5; extra == "docs"
 Dynamic: license-file
 
 # MicroPyzzotMet
 
 **MicroPyzzotMet** is a Python package for downscaling meteorological variables over complex terrain using a high-resolution DEM and reanalysis forcing (currently focused on ERA5-Land via EarthDataHub). It implements a lightweight, MicroMet-inspired workflow for generating distributed atmospheric forcing fields for snow, cryosphere, hydrology, and mountain-environment applications.
+
+Documentation is available in the repository under `docs/` and through Read the Docs.
 
 The project now uses a **packaged `src/` layout** and an installable **CLI entrypoint**:
 
@@ -72,10 +81,10 @@ Outputs are written as monthly NetCDF files inside the working directory.
 micropyzzotmet/
 ├── pyproject.toml
 ├── README.md
+├── CONTRIBUTING.md
+├── JOSS_RESUBMISSION_GUIDE.md
 ├── LICENSE.txt
 ├── auto_run_Paloma.py
-├── run_micromet_DEMO_MAIPO.sh
-├── run_micromet_alps.sh
 ├── auxiliary_data/
 │   └── geopotential3.nc
 ├── docs/
@@ -97,7 +106,72 @@ micropyzzotmet/
 
 ## Installation
 
-### Recommended: create the virtual environment, then install the package
+### Install from PyPI
+
+If a public release is available on PyPI, you can install it with:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install micropyzzotmet
+```
+
+At the moment, if `pip install micropyzzotmet` returns `No matching distribution found`, the package is not yet available on the public PyPI index for your environment, and you should use the source installation route below.
+
+### Install from source
+
+This is the currently reliable installation path for this repository.
+
+Create a virtual environment, activate it, and install the package:
+
+```bash
+# Create a virtual environment
+python3 -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate
+
+# Upgrade pip
+pip install --upgrade pip
+
+# Install the package
+pip install -e .
+```
+
+You can verify that the CLI is available with:
+
+```bash
+micropyzzotmet --help
+```
+
+### Optional extras
+
+If you are working from a local clone and want development or documentation tools, use editable installation with extras.
+
+For development tools:
+
+```bash
+pip install -e ".[dev]"
+```
+
+For documentation tools:
+
+```bash
+pip install -e ".[docs]"
+```
+
+### Environment requirements
+
+For full production runs, make sure the environment also provides:
+
+- Python 3.10+
+- GDAL command-line tools (`gdaldem`)
+- rasterio / rioxarray / pyproj
+- xarray / zarr / netCDF4
+- joblib / tqdm
+- pvlib
+- fsspec / s3fs / dask (required for EarthDataHub Zarr access)
 
 ### EarthDataHub credentials
 
@@ -121,51 +195,6 @@ chmod 600 ~/.netrc
 ```
 
 > **Important:** never commit a real EarthDataHub PAT or `~/.netrc` credentials into version control.
-
----
-
-## Installation
-
-### Recommended: create the virtual environment, then install the package
-
-```bash
-# Create a virtual environment
-python3 -m venv .venv
-
-# Activate the virtual environment
-source .venv/bin/activate
-
-# Upgrade pip to latest version
-pip install --upgrade pip
-
-# Install the project and all dependencies in development mode
-pip install -e .
-
-```
-
-You can check that the CLI is available with:
-
-```bash
-micropyzzotmet --help
-```
-
-### Alternative: install into an existing environment
-
-If you already have a working Python/geospatial environment, you can install directly:
-
-```bash
-pip install -e .
-```
-
-This route is best for development. For full production runs, make sure the environment also provides:
-
-- Python 3.10+
-- GDAL command-line tools (`gdaldem`)
-- rasterio / rioxarray / pyproj
-- xarray / zarr / netCDF4
-- joblib / tqdm
-- pvlib
-- fsspec / s3fs / dask (required for EarthDataHub Zarr access)
 
 ---
 
@@ -269,6 +298,58 @@ You can also point to any other JSON config:
 micropyzzotmet path/to/your_config.json
 ```
 
+## Usage examples
+
+### Example 1: Run an included example configuration
+
+```bash
+micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
+```
+
+This runs the full workflow using the example Maipo configuration.
+
+### Example 2: Run your own configuration file
+
+```bash
+micropyzzotmet /absolute/path/to/config.json
+```
+
+Use this when your project configuration is stored outside the repository.
+
+### Example 3: Check that the CLI is installed correctly
+
+```bash
+micropyzzotmet --help
+```
+
+This is the fastest way to confirm that installation completed successfully and that the console entry point is available.
+
+### Example 4: Install and use the released version from PyPI
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install micropyzzotmet
+micropyzzotmet /path/to/config.json
+```
+
+Use this only when a public PyPI release is available.
+It is intended for supported Python versions only.
+
+### Example 5: Development workflow from a local clone
+
+```bash
+git clone https://github.com/bare92/micropyzzotmet.git
+cd micropyzzotmet
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
+```
+
+This is the recommended route if you want to modify code, run tests, or contribute changes.
+
 ---
 
 ## Current workflow behavior
@@ -284,6 +365,8 @@ The current temperature downscaling code reads the auxiliary geopotential file f
 ```
 
 For that reason, the safest way to run the package at the moment is **from the repository root**, not from an arbitrary working directory.
+
+This means that, even if a future PyPI installation path is available, some workflows may still be easiest when launched from a repository checkout until all repository-relative paths are fully removed from the runtime code.
 
 ### `era_file` currently acts as a download switch
 
@@ -360,12 +443,27 @@ micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
 
 Sphinx documentation sources are included in `docs/source/`.
 
+Hosted documentation is configured through Read the Docs.
+
 To build the docs locally:
 
 ```bash
-pip install -r docs/requirements.txt
+pip install -e ".[docs]"
 make -C docs html
 ```
+
+To run tests locally:
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+The repository also includes GitHub Actions CI and a Read the Docs configuration file:
+
+- `.github/workflows/tests.yml`
+- `.github/workflows/publish.yml`
+- `.readthedocs.yml`
 
 ---
 

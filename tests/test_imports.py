@@ -2,6 +2,8 @@
 Tests for package imports and basic structure.
 """
 
+from importlib.resources import files
+
 import pytest
 
 
@@ -45,3 +47,8 @@ class TestPackageImports:
         """Test importing zarr with the pinned numcodecs version."""
         import zarr
         assert zarr is not None
+
+    def test_packaged_geopotential_resource_exists(self):
+        """Test that the packaged geopotential resource is available."""
+        resource = files("micropyzzotmet").joinpath("auxiliary_data/geopotential3.nc")
+        assert resource.is_file()
