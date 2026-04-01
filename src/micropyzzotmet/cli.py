@@ -1,19 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import sys
 import time
+
+from .main_micromet import run_micropezzomet
 
 
 def main() -> None:
-    if sys.version_info >= (3, 13):
-        raise RuntimeError(
-            "micropyzzotmet currently supports Python 3.10-3.12. "
-            "Please create an environment with Python 3.12 or 3.11."
-        )
-
-    from .main_micromet import run_micropezzomet
-
     parser = argparse.ArgumentParser(
         prog="micropyzzotmet",
         description="Run the MicroPyzzotMet downscaling workflow from a JSON config file.",
