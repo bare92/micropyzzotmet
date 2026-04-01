@@ -3,9 +3,8 @@
 
 version: 2
 
-# Python version and dependencies
+# Python dependencies
 python:
-  version: '3.11'
   install:
     - method: pip
       path: .
