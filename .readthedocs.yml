@@ -36,10 +36,5 @@ search:
     - /404
     - /sitemap.xml
 
-# Comments on pull requests
-comment:
-  # Notify on pull requests
-  pull_requests: true
-
 # Redirects (useful for migrations)
 redirects: {}
