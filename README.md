@@ -2,6 +2,8 @@
 
 **MicroPyzzotMet** is a Python package for downscaling meteorological variables over complex terrain using a high-resolution DEM and reanalysis forcing (currently focused on ERA5-Land via EarthDataHub). It implements a lightweight, MicroMet-inspired workflow for generating distributed atmospheric forcing fields for snow, cryosphere, hydrology, and mountain-environment applications.
 
+Documentation is available in the repository under `docs/` and through Read the Docs.
+
 The project now uses a **packaged `src/` layout** and an installable **CLI entrypoint**:
 
 ```bash
@@ -40,10 +42,10 @@ Outputs are written as monthly NetCDF files inside the working directory.
 micropyzzotmet/
 ├── pyproject.toml
 ├── README.md
+├── CONTRIBUTING.md
+├── JOSS_RESUBMISSION_GUIDE.md
 ├── LICENSE.txt
 ├── auto_run_Paloma.py
-├── run_micromet_DEMO_MAIPO.sh
-├── run_micromet_alps.sh
 ├── auxiliary_data/
 │   └── geopotential3.nc
 ├── docs/
@@ -65,7 +67,74 @@ micropyzzotmet/
 
 ## Installation
 
-### Recommended: create the virtual environment, then install the package
+### Install from PyPI
+
+If you want to use the released package without modifying the source code:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install micropyzzotmet
+```
+
+Update to the latest published release with:
+
+```bash
+pip install --upgrade micropyzzotmet
+```
+
+### Install from source
+
+Create a virtual environment, activate it, and install the package:
+
+```bash
+# Create a virtual environment
+python3 -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate
+
+# Upgrade pip
+pip install --upgrade pip
+
+# Install the package
+pip install -e .
+```
+
+You can verify that the CLI is available with:
+
+```bash
+micropyzzotmet --help
+```
+
+### Optional extras
+
+If you are working from a local clone and want development or documentation tools, use editable installation with extras.
+
+For development tools:
+
+```bash
+pip install -e ".[dev]"
+```
+
+For documentation tools:
+
+```bash
+pip install -e ".[docs]"
+```
+
+### Environment requirements
+
+For full production runs, make sure the environment also provides:
+
+- Python 3.10+
+- GDAL command-line tools (`gdaldem`)
+- rasterio / rioxarray / pyproj
+- xarray / zarr / netCDF4
+- joblib / tqdm
+- pvlib
+- fsspec / s3fs / dask (required for EarthDataHub Zarr access)
 
 ### EarthDataHub credentials
 
@@ -89,51 +158,6 @@ chmod 600 ~/.netrc
 ```
 
 > **Important:** never commit a real EarthDataHub PAT or `~/.netrc` credentials into version control.
-
----
-
-## Installation
-
-### Recommended: create the virtual environment, then install the package
-
-```bash
-# Create a virtual environment
-python3 -m venv .venv
-
-# Activate the virtual environment
-source .venv/bin/activate
-
-# Upgrade pip to latest version
-pip install --upgrade pip
-
-# Install the project and all dependencies in development mode
-pip install -e .
-
-```
-
-You can check that the CLI is available with:
-
-```bash
-micropyzzotmet --help
-```
-
-### Alternative: install into an existing environment
-
-If you already have a working Python/geospatial environment, you can install directly:
-
-```bash
-pip install -e .
-```
-
-This route is best for development. For full production runs, make sure the environment also provides:
-
-- Python 3.10+
-- GDAL command-line tools (`gdaldem`)
-- rasterio / rioxarray / pyproj
-- xarray / zarr / netCDF4
-- joblib / tqdm
-- pvlib
-- fsspec / s3fs / dask (required for EarthDataHub Zarr access)
 
 ---
 
@@ -237,6 +261,57 @@ You can also point to any other JSON config:
 micropyzzotmet path/to/your_config.json
 ```
 
+## Usage examples
+
+### Example 1: Run an included example configuration
+
+```bash
+micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
+```
+
+This runs the full workflow using the example Maipo configuration.
+
+### Example 2: Run your own configuration file
+
+```bash
+micropyzzotmet /absolute/path/to/config.json
+```
+
+Use this when your project configuration is stored outside the repository.
+
+### Example 3: Check that the CLI is installed correctly
+
+```bash
+micropyzzotmet --help
+```
+
+This is the fastest way to confirm that installation completed successfully and that the console entry point is available.
+
+### Example 4: Install and use the released version from PyPI
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install micropyzzotmet
+micropyzzotmet /path/to/config.json
+```
+
+This is the simplest route for end users who only want to run the released software.
+
+### Example 5: Development workflow from a local clone
+
+```bash
+git clone https://github.com/bare92/micropyzzotmet.git
+cd micropyzzotmet
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
+```
+
+This is the recommended route if you want to modify code, run tests, or contribute changes.
+
 ---
 
 ## Current workflow behavior
@@ -252,6 +327,8 @@ The current temperature downscaling code reads the auxiliary geopotential file f
 ```
 
 For that reason, the safest way to run the package at the moment is **from the repository root**, not from an arbitrary working directory.
+
+This means that, although installation from PyPI is now available, some workflows may still be easiest when launched from a repository checkout until all repository-relative paths are fully removed from the runtime code.
 
 ### `era_file` currently acts as a download switch
 
@@ -328,12 +405,27 @@ micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
 
 Sphinx documentation sources are included in `docs/source/`.
 
+Hosted documentation is configured through Read the Docs.
+
 To build the docs locally:
 
 ```bash
-pip install -r docs/requirements.txt
+pip install -e ".[docs]"
 make -C docs html
 ```
+
+To run tests locally:
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+The repository also includes GitHub Actions CI and a Read the Docs configuration file:
+
+- `.github/workflows/tests.yml`
+- `.github/workflows/publish.yml`
+- `.readthedocs.yml`
 
 ---
 
