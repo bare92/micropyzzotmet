@@ -12,8 +12,10 @@ import types
 # -------------------------------------------------------------------------
 # docs/source/conf.py -> docs/source -> docs -> <repo root>
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT))  # so "import micropyzzotmet" works if it's a package
-sys.path.insert(0, str(ROOT))  # keep simple + explicit
+SRC = ROOT / "src"
+PKG = SRC / "micropyzzotmet"
+sys.path.insert(0, str(SRC))
+sys.path.insert(0, str(PKG))
 
 # If your modules are NOT inside a package folder but live at repo root,
 # this still makes them importable (e.g. "import downscaling_variables").
@@ -21,6 +23,7 @@ sys.path.insert(0, str(ROOT))  # keep simple + explicit
 
 sys.stderr.write("### CONF.PY LOADED ###\n")
 sys.stderr.write(f"### ROOT = {ROOT} ###\n")
+sys.stderr.write(f"### SRC = {SRC} ###\n")
 
 # -------------------------------------------------------------------------
 # PROJECT INFO

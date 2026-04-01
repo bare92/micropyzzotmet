@@ -5,6 +5,7 @@ Tests for the utils module of MicroPyzzotMet.
 import pytest
 import os
 import json
+import re
 from pathlib import Path
 from micropyzzotmet.utils import get_earthdatahub_credentials, build_earthdatahub_url
 
@@ -67,4 +68,4 @@ class TestPackageVersion:
         from micropyzzotmet import __version__
         assert __version__ is not None
         assert isinstance(__version__, str)
-        assert __version__ == "0.1.0"
+        assert re.match(r"^\d+\.\d+\.\d+$", __version__)

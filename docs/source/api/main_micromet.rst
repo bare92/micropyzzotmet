@@ -9,7 +9,7 @@ It is the programmatic counterpart of running::
 
 Use this module if you want to call the full pipeline from Python.
 
-.. automodule:: main_micromet
+.. automodule:: micropyzzotmet.main_micromet
    :members:
    :undoc-members:
    :show-inheritance:
