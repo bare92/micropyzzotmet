@@ -40,3 +40,8 @@ class TestPackageImports:
         from micropyzzotmet import downscaling_variables
         # Module should exist
         assert downscaling_variables is not None
+
+    def test_import_zarr(self):
+        """Test importing zarr with the pinned numcodecs version."""
+        import zarr
+        assert zarr is not None

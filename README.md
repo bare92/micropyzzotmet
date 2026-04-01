@@ -126,7 +126,7 @@ pip install -e ".[docs]"
 
 For full production runs, make sure the environment also provides:
 
-- Python 3.10-3.12
+- Python 3.10+
 - GDAL command-line tools (`gdaldem`)
 - rasterio / rioxarray / pyproj
 - xarray / zarr / netCDF4
