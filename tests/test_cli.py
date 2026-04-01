@@ -18,7 +18,7 @@ class TestCLI:
                 # argparse calls sys.exit(2) for missing arguments
                 main()
     
-    @patch('micropyzzotmet.cli.run_micropezzomet')
+    @patch('micropyzzotmet.main_micromet.run_micropezzomet')
     def test_main_accepts_config_file(self, mock_run):
         """Test that main accepts a config file argument."""
         test_config = "test_config.json"
@@ -28,7 +28,7 @@ class TestCLI:
             
         mock_run.assert_called_once_with(test_config)
     
-    @patch('micropyzzotmet.cli.run_micropezzomet')
+    @patch('micropyzzotmet.main_micromet.run_micropezzomet')
     def test_main_handles_exception(self, mock_run):
         """Test exception handling in main."""
         mock_run.side_effect = Exception("Test error")
