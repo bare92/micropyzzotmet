@@ -36,5 +36,3 @@ search:
     - /404
     - /sitemap.xml
 
-# Redirects (useful for migrations)
-redirects: {}
