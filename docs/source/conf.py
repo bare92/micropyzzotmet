@@ -31,7 +31,7 @@ sys.stderr.write(f"### SRC = {SRC} ###\n")
 project = "MicroPyzzotMet"
 author = "Riccardo Barella"
 copyright = "2025, Riccardo Barella"
-release = "0.1.0"
+release = "0.1.1"
 
 # -------------------------------------------------------------------------
 # GENERAL CONFIG
