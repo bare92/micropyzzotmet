@@ -69,7 +69,7 @@ micropyzzotmet/
 
 ### Install from PyPI
 
-If you want to use the released package without modifying the source code:
+If a public release is available on PyPI, you can install it with:
 
 ```bash
 python3 -m venv .venv
@@ -78,13 +78,11 @@ pip install --upgrade pip
 pip install micropyzzotmet
 ```
 
-Update to the latest published release with:
-
-```bash
-pip install --upgrade micropyzzotmet
-```
+At the moment, if `pip install micropyzzotmet` returns `No matching distribution found`, the package is not yet available on the public PyPI index for your environment, and you should use the source installation route below.
 
 ### Install from source
+
+This is the currently reliable installation path for this repository.
 
 Create a virtual environment, activate it, and install the package:
 
@@ -296,7 +294,7 @@ pip install micropyzzotmet
 micropyzzotmet /path/to/config.json
 ```
 
-This is the simplest route for end users who only want to run the released software.
+Use this only when a public PyPI release is available.
 
 ### Example 5: Development workflow from a local clone
 
@@ -328,7 +326,7 @@ The current temperature downscaling code reads the auxiliary geopotential file f
 
 For that reason, the safest way to run the package at the moment is **from the repository root**, not from an arbitrary working directory.
 
-This means that, although installation from PyPI is now available, some workflows may still be easiest when launched from a repository checkout until all repository-relative paths are fully removed from the runtime code.
+This means that, even if a future PyPI installation path is available, some workflows may still be easiest when launched from a repository checkout until all repository-relative paths are fully removed from the runtime code.
 
 ### `era_file` currently acts as a download switch
 

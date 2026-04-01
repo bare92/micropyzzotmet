@@ -1,8 +1,12 @@
 name: Publish to PyPI
 
 on:
+  push:
+    tags:
+      - 'v*'
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -24,6 +28,10 @@ jobs:
     - name: Build distribution
       run: |
         python -m build
+
+    - name: Check distribution metadata
+      run: |
+        twine check dist/*
     
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
