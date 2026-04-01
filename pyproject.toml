@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "micropyzzotmet"
-version = "0.1.1"
+version = "0.1.2"
 description = "Lightweight Python package for meteorological downscaling over complex terrain"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 license = { text = "MIT" }
 authors = [
   { name = "Riccardo Barella" }

@@ -126,7 +126,7 @@ pip install -e ".[docs]"
 
 For full production runs, make sure the environment also provides:
 
-- Python 3.10+
+- Python 3.10-3.12
 - GDAL command-line tools (`gdaldem`)
 - rasterio / rioxarray / pyproj
 - xarray / zarr / netCDF4
@@ -295,6 +295,7 @@ micropyzzotmet /path/to/config.json
 ```
 
 Use this only when a public PyPI release is available.
+It is intended for supported Python versions only.
 
 ### Example 5: Development workflow from a local clone
 
