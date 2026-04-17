@@ -25,8 +25,53 @@ from scipy import interpolate as spint
 import copy
 import pvlib
 
+   
+
+def apply_bias_era5(temp, T_bias_correction):
+
+    # --- Read bias ---
+    bias = xr.open_dataarray(T_bias_correction)
+    bias = bias.drop_vars("spatial_ref", errors="ignore")
+
+    # --- Get coordinate ranges ---
+    temp_lat_min, temp_lat_max = float(temp.latitude.min()), float(temp.latitude.max())
+    temp_lon_min, temp_lon_max = float(temp.longitude.min()), float(temp.longitude.max())
+
+    bias_lat_min, bias_lat_max = float(bias.latitude.min()), float(bias.latitude.max())
+    bias_lon_min, bias_lon_max = float(bias.longitude.min()), float(bias.longitude.max())
+
+    # --- Check overlap ---
+    lat_overlap = not (temp_lat_max < bias_lat_min or temp_lat_min > bias_lat_max)
+    lon_overlap = not (temp_lon_max < bias_lon_min or temp_lon_min > bias_lon_max)
+
+    if not (lat_overlap and lon_overlap):
+        raise ValueError(
+            "❌ No spatial overlap between temp and bias grids.\n"
+            f"Temp lat: [{temp_lat_min}, {temp_lat_max}], lon: [{temp_lon_min}, {temp_lon_max}]\n"
+            f"Bias lat: [{bias_lat_min}, {bias_lat_max}], lon: [{bias_lon_min}, {bias_lon_max}]"
+        )
+
+    # --- Interpolate ---
+    bias_on_temp = bias.interp(
+        latitude=temp.latitude,
+        longitude=temp.longitude,
+        method="linear"
+    )
+
+    # --- Check for NaNs after interpolation ---
+    if np.isnan(bias_on_temp).all():
+        raise ValueError("❌ Interpolation resulted in all NaNs (no effective overlap).")
+
+    # --- Apply bias ---
+    t2m_corrected = temp.groupby("valid_time.month") + bias_on_temp
+
+    return t2m_corrected
+
+
     
-def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
+def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, 
+                          custom_lapse_rate=None, calibrate_lapse_rate=False, 
+                          dem_nodata=None, outformat = 'nc', T_bias_correction=None):
    
 
     geopotential_path = './auxiliary_data/geopotential3.nc'
@@ -50,6 +95,10 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
     lat = ds.latitude.values
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
     temp = ds["t2m"]
+    
+    if T_bias_correction:
+        temp = apply_bias_era5(temp, T_bias_correction)
+    
     lon2d, lat2d = np.meshgrid(lon, lat)
 
     center_lat = (lat[0] + lat[-1]) / 2
@@ -61,10 +110,14 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
         lapse_rate_all = lapse_rate_sohem if center_lat < 0 else lapse_rate_nohem
 
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_T, f"temperature_downscaled_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+    
+    ext = "nc" if outformat == "nc" else "zarr"
+    outfile = os.path.join(output_folder_T, f"temperature_downscaled_{month_tag}.{ext}")
+    
+    if os.path.exists(outfile):
+        print(f"Output already exists: {outfile}. Skipping downscaling.")
         return
+
 
     geop = xr.open_dataset(geopotential_path)
     assert "z" in geop, "Missing 'z' in geopotential file"
@@ -131,17 +184,18 @@ def downscale_Temperature(dem_path, curr_climate_file, output_folder_T, custom_l
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc,
-        outformat = 'zarr',
+        out_nc=outfile,
+        outformat = outformat,
         scale_factor=0.1
     )
 
-    print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
+    print(f"\nDownscaling complete. NetCDF saved in: {outfile}")
 
 
 
 def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3000, S0=1370.0,
-                          custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
+                          custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None,
+                          outformat = 'nc', T_bias_correction=None):
     import numpy as np
     import xarray as xr
     import os
@@ -181,6 +235,10 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
 
     ds = xr.open_dataset(curr_climate_file)
     temp, dew = ds["t2m"], ds["d2m"]
+    
+    if T_bias_correction:
+        temp = apply_bias_era5(temp, T_bias_correction)
+        
     if "valid_time" in ds.variables:
         time = ds["valid_time"].values
     elif "time" in ds.variables:
@@ -210,10 +268,14 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
     era_crs = rasterio.crs.CRS.from_epsg(4326)
 
     month_tag = time_pd[0].strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_SW, f"shortwave_downscaled_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+    
+    ext = "nc" if outformat == "nc" else "zarr"
+    outfile = os.path.join(output_folder_SW, f"shortwave_downscaled_{month_tag}.{ext}")
+    
+    if os.path.exists(outfile):
+        print(f"Output already exists: {outfile}. Skipping downscaling.")
         return
+
 
     Qsi_all = []
     time_list = []
@@ -284,13 +346,14 @@ def downscale_SW_original(dem_path, curr_climate_file, output_folder_SW, z_700=3
         dem_shape=dem_shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc,
-        outformat = 'zarr',
+        out_nc=outfile,
+        outformat = outformat,
         scale_factor=1
     )
 
 
-def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodata=None):
+def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodata=None,
+                        outformat = 'nc'):
 
     import numpy as np
     import xarray as xr
@@ -348,10 +411,14 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
 
     is_daily_data = len(time_pd) == 1 or (len(time_pd) > 1 and (time_pd[1] - time_pd[0]) >= pd.Timedelta("23h"))
     month_tag = time_pd[0].strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_SW, f"shortwave_downscaled_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+    
+    ext = "nc" if outformat == "nc" else "zarr"
+    outfile = os.path.join(output_folder_SW, f"shortwave_downscaled_{month_tag}.{ext}")
+    
+    if os.path.exists(outfile):
+        print(f"Output already exists: {outfile}. Skipping downscaling.")
         return
+    
 
     Qsi_all = []
     time_list = []
@@ -431,13 +498,15 @@ def downscale_SW_custom(dem_path, curr_climate_file, output_folder_SW, dem_nodat
         dem_shape=dem_shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc,
-        outformat = 'zarr',
+        out_nc=outfile,
+        outformat = outformat,
         scale_factor=1
     )
 
 
-def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
+def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rate=None, 
+                 calibrate_lapse_rate=False, dem_nodata=None, outformat = 'nc',
+                 T_bias_correction=None):
     a, b, c = 611.21, 17.502, 240.97
     geopotential_path = './auxiliary_data/geopotential3.nc'
     os.makedirs(output_folder_RH, exist_ok=True)
@@ -458,14 +527,21 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
 
     ds = xr.open_dataset(curr_climate_file)
     temp, dew = ds["t2m"], ds["d2m"]
+    
+    if T_bias_correction:
+        temp = apply_bias_era5(temp, T_bias_correction)
+        
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
     lon, lat = ds.longitude.values, ds.latitude.values
     lon2d, lat2d = np.meshgrid(lon, lat)
 
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_RH, f"relative_humidity_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+    
+    ext = "nc" if outformat == "nc" else "zarr"
+    outfile = os.path.join(output_folder_RH, f"relative_humidity_{month_tag}.{ext}")
+    
+    if os.path.exists(outfile):
+        print(f"Output already exists: {outfile}. Skipping downscaling.")
         return
 
     center_lat = (lat[0] + lat[-1]) / 2
@@ -551,13 +627,14 @@ def downscale_RH(dem_path, curr_climate_file, output_folder_RH, custom_lapse_rat
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc,
-        outformat = 'zarr',
+        out_nc=outfile,
+        outformat = outformat,
         scale_factor=1
     )
 
 
-def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom_gamma=None, dem_nodata=None):
+def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, 
+                            custom_gamma=None, dem_nodata=None, outformat = 'nc'):
     
 
     geopotential_path = './auxiliary_data/geopotential3.nc'
@@ -583,10 +660,12 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
     lon2d, lat2d = np.meshgrid(lon, lat)
     
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_P, f"precipitation_{month_tag}.nc")
     
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+    ext = "nc" if outformat == "nc" else "zarr"
+    outfile = os.path.join(output_folder_P, f"precipitation_{month_tag}.{ext}")
+    
+    if os.path.exists(outfile):
+        print(f"Output already exists: {outfile}. Skipping downscaling.")
         return
 
     center_lat = (lat[0] + lat[-1]) / 2
@@ -646,13 +725,14 @@ def downscale_Precipitation(dem_path, curr_climate_file, output_folder_P, custom
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc,
-        outformat = 'zarr',
+        out_nc=outfile,
+        outformat = outformat,
         scale_factor=0.1
     )
 
 
-def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.5, dem_nodata=None):
+def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.5, 
+                   dem_nodata=None, outformat = 'nc'):
 
     os.makedirs(output_folder_W, exist_ok=True)
     working_directory = os.path.dirname(os.path.dirname(os.path.dirname(curr_climate_file)))
@@ -682,10 +762,14 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
     v10 = ds["v10"]
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_W, f"wind_speed_direction_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+    
+    ext = "nc" if outformat == "nc" else "zarr"
+    outfile = os.path.join(output_folder_W, f"wind_speed_direction_{month_tag}.{ext}")
+    
+    if os.path.exists(outfile):
+        print(f"Output already exists: {outfile}. Skipping downscaling.")
         return
+    
 
     lon = ds.longitude.values
     lat = ds.latitude.values
@@ -766,15 +850,17 @@ def downscale_Wind(dem_path, curr_climate_file, output_folder_W, slope_weight=0.
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc,
-        outformat = 'zarr',
+        out_nc=outfile,
+        outformat = outformat,
         scale_factor=1
     )
 
-    print(f"\nWind downscaling complete. NetCDF saved in: {out_nc}")
+    print(f"\nWind downscaling complete. NetCDF saved in: {outfile}")
     
     
-def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, custom_lapse_rate=None, calibrate_lapse_rate=False, dem_nodata=None):
+def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, 
+                 custom_lapse_rate=None, calibrate_lapse_rate=False, 
+                 dem_nodata=None,  outformat = 'nc', T_bias_correction=None):
     import numpy as np
     import os
     import rasterio
@@ -809,6 +895,11 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
 
     ds = xr.open_dataset(curr_climate_file)
     T = ds["t2m"]
+    
+    if T_bias_correction:
+        T = apply_bias_era5(T, T_bias_correction)
+        
+        
     D = ds["d2m"]
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
     lon, lat = ds.longitude.values, ds.latitude.values
@@ -824,9 +915,12 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
     vp_coeff_all = vp_coeff_sohem if center_lat < 0 else vp_coeff_nohem
 
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_LW, f"longwave_downscaled_{month_tag}.nc")
-    if os.path.exists(out_nc):
-        print(f"Output already exists: {out_nc}. Skipping downscaling.")
+    
+    ext = "nc" if outformat == "nc" else "zarr"
+    outfile = os.path.join(output_folder_LW, f"longwave_downscaled_{month_tag}.{ext}")
+    
+    if os.path.exists(outfile):
+        print(f"Output already exists: {outfile}. Skipping downscaling.")
         return
 
     geop = xr.open_dataset(geopotential_path)
@@ -920,12 +1014,12 @@ def downscale_LW(dem_path, curr_climate_file, output_folder_LW, z_700=3000, cust
         dem_shape=dem.shape,
         dem_transform=dem_transform,
         dem_crs=dem_crs,
-        out_nc=out_nc,
-        outformat = 'zarr',
+        out_nc=outfile,
+        outformat = outformat,
         scale_factor=1
     )
 
-    print(f"\nDownscaling complete. NetCDF saved in: {out_nc}")
+    print(f"\nDownscaling complete. NetCDF saved in: {outfile}")
 
 
 

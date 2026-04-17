@@ -1,11 +1,11 @@
 {
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Vale_test_micromet",
+  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Paloma/Area05/Micromet_bias_test",
   "dem_file": null,
-  "download_dem_extent": {
-    "lat_min": 5816500,
-    "lat_max": 6997000,
-    "lon_min": 271000,
-    "lon_max": 531500
+    "download_dem_extent": {
+    "lat_min": null,
+    "lat_max": null,
+    "lon_min": null,
+    "lon_max": null
     },
   "download_dem_epsg": 32719,  
   "download_dem_resolution": 50,  
@@ -18,24 +18,27 @@
     "relative_humidity": "y",
     "precipitation": "n",
     "wind": "n",
-    "lw_radiation": "n"
+    "lw_radiation": "y"
   },
   "start_date": "2013-04-01",
-  "end_date": "2024-03-31",
+  "end_date": "2013-05-31",
+  "outformat": "zarr",
   "aggregate_daily": "y",
   "dem_nodata": -9999,
-  "outformat": "zarr",
   "auto_calibrate_lapse_rate": "n",
+  "generate_s3m_input": "n",
   "custom_lapse_rates": {
     "temperature": {
-      "monthly": [6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5]
+      "monthly": [4.16179821, 4.24043553, 4.0746052 , 4.04840574, 4.15547617,
+         4.55149822, 4.6564325 , 4.79575257, 4.98081109, 4.78810294,
+         4.59585139, 4.38894764]
     },
     "precipitation": {
       "monthly": null
     }
   },
   "jobs_parallel_downscale": -1,
-  "jobs_parallel_download": -1
+  "jobs_parallel_download": -1,
+  "T_bias_correction": "/mnt/CEPH_PROJECTS/SNOWCOP/Lena/Bias_correction/SNOWCOP_extend_bias_correction_grid.nc"
 }
-
 

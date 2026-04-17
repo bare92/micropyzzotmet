@@ -4,27 +4,14 @@
 ENV_NAME="microenv"
 PYTHON_VERSION="3.10"
 
-# Remove old environment if it exists
-echo "Removing any existing environment: $ENV_NAME"
-conda remove -y -n $ENV_NAME --all
 
-# Configure channels
-echo "Configuring conda channels..."
-conda config --add channels conda-forge
-conda config --add channels defaults
-conda config --set channel_priority strict
 
-# Create the new environment
+# Create the new environment with channels
 echo "Creating environment $ENV_NAME with Python $PYTHON_VERSION..."
-conda create -y -n $ENV_NAME python=$PYTHON_VERSION
 
-# Activate the environment
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate $ENV_NAME
-
-# Install required packages
-echo "Installing required packages..."
-conda install -y \
+micromamba create -n $ENV_NAME \
+  -c conda-forge \
+  python=$PYTHON_VERSION \
   numpy \
   pandas \
   xarray \
@@ -44,10 +31,13 @@ conda install -y \
   dask \
   distributed \
   netCDF4 \
-  h5netcdf
+  h5netcdf \
+  spyder \
+  pynacl
 
-# Optional: install spyder if you want an IDE in this environment
-conda install -y spyder
+# Activate environment
+echo "Activating environment..."
+eval "$(micromamba shell hook -s bash)"
+micromamba activate $ENV_NAME
 
 echo "Environment '$ENV_NAME' is ready with Python $PYTHON_VERSION."
-

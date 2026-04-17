@@ -10,22 +10,20 @@ import os
 import subprocess
 
 # Aree e bounding box
-# areas = {
-#     "Area01":  (375500, 6819500, 427500, 6878500),
-#     "Area02":  (375500, 6642500, 427500, 6701500),
-#     "Area03":  (335000, 6560000, 390500, 6624000),
-#     "Area04":  (340000, 6417500, 395500, 6478500),
-#     "Area05":  (390000, 6304000, 448500, 6400000),
-#     "Area06":  (366000, 6205000, 428500, 6342500),
-#     "Area07":  (342000, 6084000, 398500, 6158500),
-#     "Area08":  (323500, 5993500, 375500, 6052500),
-#     "Area09":  (288000, 5970500, 328500, 6011000),
-#     "Area10": (271500, 5875500, 323500, 5934500),
-# }
-
 areas = {
-    "Area06":  (366000, 6205000, 428500, 6342500)
+    "Area01":  (375500, 6819500, 427500, 6878500),
+    "Area02":  (375500, 6642500, 427500, 6701500),
+    "Area03":  (335000, 6560000, 390500, 6624000),
+    "Area04":  (340000, 6417500, 395500, 6478500),
+    "Area05":  (390000, 6304000, 448500, 6400000),
+    "Area06":  (366000, 6205000, 428500, 6342500),
+    "Area07":  (342000, 6084000, 398500, 6158500),
+    "Area08":  (323500, 5993500, 375500, 6052500),
+    "Area09":  (288000, 5970500, 328500, 6011000),
+    "Area10": (271500, 5875500, 323500, 5934500),
 }
+
+
 
 # Zone -> lapse rates key
 zone_map = {
@@ -39,9 +37,9 @@ south_areas = {"Area07", "Area08", "Area09", "Area10"}
 
 # Base paths (da adattare al tuo cluster)
 container = "/mnt/CEPH_PROJECTS/SNOWCOP/Paloma"
-base_config = "/home/vpremier/Documents/git/micropyzzotmet/micro_config_SNOWCOP_DOMAIN.json"
+base_config = "/home/vpremier/Documents/git/micropyzzotmet/micro_config_bias.json"
 lapse_rates_file = "/home/vpremier/Documents/git/micropyzzotmet/auxiliary_data/lapse_rates_doc.json"
-run_script = "/home/vpremier/Documents/git/micropyzzotmet/run_micromet_SNOWCOP_DOMAIN.sh"
+run_script = "/home/vpremier/Documents/git/micropyzzotmet/run_micromet_bias.sh"
 
 # Carica lapse rates
 with open(lapse_rates_file) as f:
@@ -74,7 +72,9 @@ for area, (xmin, ymin, xmax, ymax) in areas.items():
     }
 
     # Lapse rates
-    cfg["custom_lapse_rates"] = lapse_rates[zone_map[zone]]
+    # cfg["custom_lapse_rates"] = lapse_rates[zone_map[zone]]
+    cfg["custom_lapse_rates"] = lapse_rates["Andes_Bias_Corrected"]
+
 
     os.makedirs(workdir, exist_ok=True)
 
@@ -86,5 +86,7 @@ for area, (xmin, ymin, xmax, ymax) in areas.items():
     # Lancia lo .sh passando il config
     print(f"Running Micromet for {area}...")
     subprocess.run([run_script, config_path], check=True)
+    
+    
 
 print("All Micromet runs completed.")
