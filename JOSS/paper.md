@@ -63,17 +63,17 @@ This distinction is also the main build-versus-contribute justification. Extendi
 
 The package uses a modular variable-by-variable architecture. Temperature, humidity, radiation, precipitation, and wind are processed through separate routines that share a common pattern: ingest coarse forcing, align it to the target grid, apply vertical or terrain-based corrections, and write standardized outputs. This design reflects an explicit trade-off. Instead of reconstructing full atmospheric profiles or relying on computationally expensive terrain clustering, `MicroPyzzotMet` works directly from commonly available near-surface variables. That choice reduces complexity and input requirements, which is essential for multi-decadal and large-domain applications.
 
-The workflow is also designed to keep memory use bounded. Terrain derivatives are computed once and reused across variables, while climate inputs are processed in monthly chunks with parallel execution across files. This favors robust long-period production runs on standard workstations and keeps the package compatible with downstream cryospheric and hydrological modelling workflows.
+The workflow is also designed to keep memory use bounded. Terrain derivatives are computed once and reused across variables, while climate inputs are processed in monthly chunks with parallel execution across files. This favors robust long-period production runs on standard workstations and keeps the package compatible with downstream cryospheric and hydrological modelling workflows. @fig:workflow summarizes this configuration-driven processing chain from input data to downscaled outputs.
 
-![Overview of the configuration-driven `MicroPyzzotMet` workflow, from terrain and reanalysis inputs through variable-specific downscaling to standardized gridded outputs.](micropyzzotmet_workflow.png){ width=95% }
+![Overview of the configuration-driven `MicroPyzzotMet` workflow, from terrain and reanalysis inputs through variable-specific downscaling to standardized gridded outputs.](micropyzzotmet_workflow.png){#fig:workflow width=60%}
 
 # Research impact statement
 
 `MicroPyzzotMet` has already been used in two ongoing research applications that required the production of high-resolution forcing datasets over large mountain regions. First, it has been used to downscale air temperature and incoming shortwave radiation to 50 m resolution for the extratropical Andes over 2002--2023. Second, it is being used to generate forcing for a snow reanalysis across the entire Alpine region at 500 m resolution over 1950--2024, including air temperature, incoming shortwave radiation, precipitation, and relative humidity.
 
-These applications are not yet published, but they demonstrate concrete and realized use beyond the software paper itself: in both cases, `MicroPyzzotMet` made it feasible to generate terrain-aware forcing datasets spanning decades and large spatial domains within a reproducible Python workflow. This is precisely the class of problem the package was designed to address.
+These applications are not yet published, but they demonstrate concrete and realized use beyond the software paper itself: in both cases, `MicroPyzzotMet` made it feasible to generate terrain-aware forcing datasets spanning decades and large spatial domains within a reproducible Python workflow. This is precisely the class of problem the package was designed to address. Representative examples of the resulting terrain-aware fields are shown in @fig:examples.
 
-![Examples of terrain-aware downscaled outputs generated with `MicroPyzzotMet`, illustrating the added spatial detail produced over complex mountain topography.](downscaling_examples.png){ width=95% }
+![Examples of terrain-aware downscaled outputs generated with `MicroPyzzotMet`, illustrating the added spatial detail produced over complex mountain topography.](downscaling_examples.png){#fig:examples}
 
 The repository also includes a complete example workflow for the Maipo basin in Chile, showing end-to-end acquisition of terrain and ERA5-Land inputs, configuration-driven processing, and production of gridded outputs. Together, the ongoing Andes and Alpine applications and the reproducible example provide specific evidence of near-term scholarly significance for cryospheric and hydrological research.
 
