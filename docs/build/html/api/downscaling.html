@@ -131,26 +131,22 @@
 <dt class="sig sig-object py" id="micropyzzotmet.downscaling_variables.downscale_Temperature">
 <span class="sig-prename descclassname"><span class="pre">micropyzzotmet.downscaling_variables.</span></span><span class="sig-name descname"><span class="pre">downscale_Temperature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_folder_T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibrate_lapse_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">24</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/downscaling_variables.html#downscale_Temperature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.downscaling_variables.downscale_Temperature" title="Link to this definition"></a></dt>
 <dd><p>Downscale ERA5/ERA5-Land 2 m air temperature (<code class="docutils literal notranslate"><span class="pre">t2m</span></code>) to a high-resolution DEM grid.</p>
-<dl class="simple">
-<dt>The method:</dt><dd><ol class="arabic simple">
+<blockquote>
+<div><p>Workflow</p>
+<ol class="arabic simple">
 <li><p>Opens the DEM raster and uses its grid/CRS/transform as target.</p></li>
 <li><p>Opens the climate NetCDF and reads <code class="docutils literal notranslate"><span class="pre">t2m</span></code> on the ERA grid.</p></li>
-</ol>
-</dd>
-</dl>
-<ol class="arabic simple" start="3">
 <li><dl class="simple">
-<dt>Reads packaged geopotential data (variable <code class="docutils literal notranslate"><span class="pre">z</span></code>) to</dt><dd><p>estimate ERA-grid elevations (meters).</p>
+<dt>Reads packaged geopotential data (variable <code class="docutils literal notranslate"><span class="pre">z</span></code>) to estimate ERA-grid</dt><dd><p>elevations (meters).</p>
 </dd>
 </dl>
 </li>
-</ol>
-<blockquote>
-<div><ol class="arabic simple" start="4">
-<li><p>Applies a vertical lapse-rate correction:
-- <strong>Fixed monthly lapse rates</strong> (MicroMet defaults) OR
-- <strong>User-provided</strong> monthly lapse rates OR
-- <strong>Calibrated</strong> lapse rate (linear regression of T vs elevation per timestep).</p></li>
+<li><dl class="simple">
+<dt>Applies a vertical lapse-rate correction using fixed monthly lapse rates,</dt><dd><p>user-provided monthly lapse rates, or a calibrated lapse rate from linear
+regression of temperature versus elevation per timestep.</p>
+</dd>
+</dl>
+</li>
 <li><p>Reprojects the “sea-level” temperature field to the DEM grid (bilinear).</p></li>
 <li><p>Applies the lapse-rate correction using DEM elevations.</p></li>
 </ol>
@@ -251,22 +247,23 @@ based on longitude (same behavior as your current implementation).</p></li>
 <dd><p>Downscale relative humidity to a high-resolution DEM grid using t2m and d2m.</p>
 <p>Relative humidity is computed using the Magnus formulation from downscaled
 air temperature and dew point temperature.</p>
-<dl class="simple">
-<dt>The workflow:</dt><dd><ol class="arabic simple">
+<blockquote>
+<div><p>Workflow</p>
+<ol class="arabic simple">
 <li><p>Read DEM raster to define target grid/CRS/transform.</p></li>
 <li><p>Open climate NetCDF and read <code class="docutils literal notranslate"><span class="pre">t2m</span></code> and <code class="docutils literal notranslate"><span class="pre">d2m</span></code>.</p></li>
-</ol>
+<li><p>Read packaged geopotential data to estimate ERA-grid elevation.</p></li>
+<li><dl class="simple">
+<dt>Apply lapse-rate corrections using a temperature lapse rate (monthly</dt><dd><p>default or user-provided) and a dew-point lapse rate derived from
+empirical monthly vapor-pressure coefficients.</p>
 </dd>
 </dl>
-<ol class="arabic simple" start="3">
-<li><p>Read packaged geopotential data to estimate ERA-grid elevation.</p></li>
-</ol>
-<blockquote>
-<div><ol class="arabic simple" start="4">
-<li><p>Apply lapse-rate corrections:
-- temperature lapse rate (monthly default or user-provided), and
-- dew-point lapse rate derived from empirical monthly vapor-pressure coefficients.</p></li>
-<li><p>Reproject sea-level temperature/dewpoint fields to DEM grid (bilinear).</p></li>
+</li>
+<li><dl class="simple">
+<dt>Reproject sea-level temperature/dewpoint fields to the DEM grid</dt><dd><p>(bilinear).</p>
+</dd>
+</dl>
+</li>
 <li><p>Compute RH (%) on the DEM grid and write output in chunks.</p></li>
 </ol>
 </div></blockquote>
@@ -334,27 +331,26 @@ and applies an elevation-based scaling controlled by monthly gamma coefficients.
 <dt class="sig sig-object py" id="micropyzzotmet.downscaling_variables.downscale_Wind">
 <span class="sig-prename descclassname"><span class="pre">micropyzzotmet.downscaling_variables.</span></span><span class="sig-name descname"><span class="pre">downscale_Wind</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_folder_W</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slope_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">24</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/downscaling_variables.html#downscale_Wind"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.downscaling_variables.downscale_Wind" title="Link to this definition"></a></dt>
 <dd><p>Downscale 10 m wind speed and wind direction to a DEM grid using terrain modifiers.</p>
-<p>This function downsamples ERA5/ERA5-Land <code class="docutils literal notranslate"><span class="pre">u10</span></code> and <code class="docutils literal notranslate"><span class="pre">v10</span></code> winds to a high-resolution DEM grid
-and applies terrain-based adjustments using:</p>
 <blockquote>
-<div><ul class="simple">
-<li><p>local terrain slope/aspect (computed from DEM), and</p></li>
-<li><p>terrain curvature (read from a raster)</p></li>
-</ul>
-</div></blockquote>
-<dl class="simple">
-<dt>The workflow:</dt><dd><ol class="arabic simple">
+<div><p>This function downsamples ERA5/ERA5-Land <code class="docutils literal notranslate"><span class="pre">u10</span></code> and <code class="docutils literal notranslate"><span class="pre">v10</span></code> winds to a
+high-resolution DEM grid and applies terrain-based adjustments using local
+terrain slope/aspect from the DEM and terrain curvature from a raster.</p>
+<p>Workflow</p>
+<ol class="arabic simple">
 <li><p>Read DEM raster to define target grid/CRS/transform.</p></li>
 <li><p>Read curvature raster from <code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/inputs/dem/*curvature*.tif</span></code>.</p></li>
 <li><p>Open climate NetCDF and read <code class="docutils literal notranslate"><span class="pre">u10</span></code> and <code class="docutils literal notranslate"><span class="pre">v10</span></code>.</p></li>
-<li><p>Reproject u/v winds from ERA grid to DEM grid (bilinear).</p></li>
+<li><p>Reproject u/v winds from the ERA grid to the DEM grid (bilinear).</p></li>
 <li><p>Compute wind speed and base wind direction.</p></li>
-<li><p>Compute slope-wind interaction and normalize slope + curvature terms.</p></li>
+<li><p>Compute slope-wind interaction and normalize slope and curvature terms.</p></li>
 <li><p>Apply a wind-speed scaling factor and a directional deflection term.</p></li>
-<li><p>Write <code class="docutils literal notranslate"><span class="pre">wind_speed</span></code> and <code class="docutils literal notranslate"><span class="pre">wind_direction</span></code> to a CF-compliant NetCDF in chunks.</p></li>
-</ol>
+<li><dl class="simple">
+<dt>Write <code class="docutils literal notranslate"><span class="pre">wind_speed</span></code> and <code class="docutils literal notranslate"><span class="pre">wind_direction</span></code> to a CF-compliant NetCDF in</dt><dd><p>chunks.</p>
 </dd>
 </dl>
+</li>
+</ol>
+</div></blockquote>
 <p>Output is written as a <strong>monthly</strong> NetCDF file named:
 <code class="docutils literal notranslate"><span class="pre">wind_speed_direction_YYYY_MM.nc</span></code> in <code class="docutils literal notranslate"><span class="pre">output_folder_W</span></code>.</p>
 <p class="rubric">Notes</p>
@@ -392,34 +388,30 @@ and applies terrain-based adjustments using:</p>
 <dt class="sig sig-object py" id="micropyzzotmet.downscaling_variables.downscale_LW">
 <span class="sig-prename descclassname"><span class="pre">micropyzzotmet.downscaling_variables.</span></span><span class="sig-name descname"><span class="pre">downscale_LW</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_folder_LW</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_700</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibrate_lapse_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">24</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/downscaling_variables.html#downscale_LW"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.downscaling_variables.downscale_LW" title="Link to this definition"></a></dt>
 <dd><p>Downscale incoming longwave radiation to a DEM grid using atmospheric emissivity parameterization.</p>
-<p>This function estimates downscaled longwave radiation using ERA5/ERA5-Land air temperature (t2m),
-dew point (d2m), and cloud fraction estimated from RH at ~700 hPa.</p>
-<dl>
-<dt>The workflow:</dt><dd><ol class="arabic simple">
+<p>This function estimates downscaled longwave radiation using ERA5/ERA5-Land
+air temperature (t2m), dew point (d2m), and cloud fraction estimated from
+RH at ~700 hPa.</p>
+<p>Workflow</p>
+<ol class="arabic simple">
 <li><p>Read DEM raster to define target grid/CRS/transform.</p></li>
 <li><p>Open climate NetCDF and read <code class="docutils literal notranslate"><span class="pre">t2m</span></code> and <code class="docutils literal notranslate"><span class="pre">d2m</span></code>.</p></li>
-</ol>
-<blockquote>
-<div><ol class="arabic simple" start="3">
 <li><p>Read packaged geopotential data to estimate ERA-grid elevation.</p></li>
+<li><p>Apply lapse-rate corrections to compute temperature and dew point at the
+700 hPa level approximation.</p></li>
+<li><p>Estimate <code class="docutils literal notranslate"><span class="pre">RH_700</span></code> and cloud fraction.</p></li>
+<li><p>Compute atmospheric emissivity using elevation-dependent coefficients
+<code class="docutils literal notranslate"><span class="pre">X</span></code>, <code class="docutils literal notranslate"><span class="pre">Y</span></code>, and <code class="docutils literal notranslate"><span class="pre">Z</span></code>.</p></li>
+<li><p>Compute longwave radiation on the ERA grid:
+<code class="docutils literal notranslate"><span class="pre">Qli</span> <span class="pre">=</span> <span class="pre">eps_atm</span> <span class="pre">*</span> <span class="pre">sigma</span> <span class="pre">*</span> <span class="pre">T^4</span></code>.</p></li>
+<li><p>Reproject <code class="docutils literal notranslate"><span class="pre">Qli</span></code> to the DEM grid (bilinear) and write output in chunks.</p></li>
 </ol>
-</div></blockquote>
-<ol class="arabic simple" start="4">
-<li><p>Apply lapse-rate corrections to compute temperature/dew point at 700 hPa level approximation.</p></li>
-<li><p>Estimate RH_700 and cloud fraction.</p></li>
-<li><p>Compute atmospheric emissivity using elevation-dependent coefficients (X, Y, Z).</p></li>
-<li><p>Compute longwave radiation on ERA grid: <code class="docutils literal notranslate"><span class="pre">Qli</span> <span class="pre">=</span> <span class="pre">eps_atm</span> <span class="pre">*</span> <span class="pre">sigma</span> <span class="pre">*</span> <span class="pre">T^4</span></code>.</p></li>
-<li><p>Reproject Qli to DEM grid (bilinear) and write output in chunks.</p></li>
-</ol>
-</dd>
-</dl>
-<p>Output is written as a <strong>monthly</strong> NetCDF file named:
+<p>Output is written as a <strong>monthly</strong> NetCDF file named
 <code class="docutils literal notranslate"><span class="pre">longwave_downscaled_YYYY_MM.nc</span></code> in <code class="docutils literal notranslate"><span class="pre">output_folder_LW</span></code>.</p>
 <p class="rubric">Notes</p>
 <ul class="simple">
-<li><p>Uses Stefan–Boltzmann constant <code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">=</span> <span class="pre">5.67e-8</span></code>.</p></li>
-<li><p>If <code class="docutils literal notranslate"><span class="pre">calibrate_lapse_rate=True</span></code>, lapse rate is estimated per timestep by regression of
-ERA-grid temperature vs ERA-grid elevation.</p></li>
+<li><p>Uses Stefan-Boltzmann constant <code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">=</span> <span class="pre">5.67e-8</span></code>.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">calibrate_lapse_rate=True</span></code>, lapse rate is estimated per timestep by
+regression of ERA-grid temperature vs ERA-grid elevation.</p></li>
 <li><p>Output NetCDF includes CF grid mapping information for QGIS/GDAL.</p></li>
 </ul>
 <dl class="field-list simple">
@@ -429,8 +421,10 @@ ERA-grid temperature vs ERA-grid elevation.</p></li>
 <li><p><strong>curr_climate_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><em>pathlib.Path</em></a>) – Path to monthly climate NetCDF containing <code class="docutils literal notranslate"><span class="pre">t2m</span></code> and <code class="docutils literal notranslate"><span class="pre">d2m</span></code>.</p></li>
 <li><p><strong>output_folder_LW</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><em>pathlib.Path</em></a>) – Output directory where the monthly NetCDF will be saved.</p></li>
 <li><p><strong>z_700</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>default 3000</em>) – Reference height (m) used for the 700 hPa approximation.</p></li>
-<li><p><strong>custom_lapse_rate</strong> (<em>array-like</em><em> of </em><em>length 12</em><em>, </em><em>optional</em>) – Monthly temperature lapse rates in K/km. Mutually exclusive with <code class="docutils literal notranslate"><span class="pre">calibrate_lapse_rate=True</span></code>.</p></li>
-<li><p><strong>calibrate_lapse_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>default False</em>) – If True, estimate lapse rate dynamically from ERA-grid temperature vs elevation.</p></li>
+<li><p><strong>custom_lapse_rate</strong> (<em>array-like</em><em> of </em><em>length 12</em><em>, </em><em>optional</em>) – Monthly temperature lapse rates in K/km. Mutually exclusive with
+<code class="docutils literal notranslate"><span class="pre">calibrate_lapse_rate=True</span></code>.</p></li>
+<li><p><strong>calibrate_lapse_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>default False</em>) – If True, estimate lapse rate dynamically from ERA-grid temperature vs
+elevation.</p></li>
 <li><p><strong>dem_nodata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Value representing nodata in the DEM. If None, NaNs are used.</p></li>
 <li><p><strong>time_chunk</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>default 24</em>) – Number of timesteps to process/write per block.</p></li>
 </ul>
