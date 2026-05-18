@@ -41,7 +41,6 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    "sphinx.ext.autodoc.typehints",
 ]
 
 autosummary_generate = True

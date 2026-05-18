@@ -38,6 +38,7 @@ Thumbs.db
 
 # Runtime outputs and logs
 *.log
+.Rhistory
 
 # Local config overrides (keep tracked templates in option_files)
 option_files/*_local.json

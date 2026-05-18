@@ -3,31 +3,31 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Main workflow (main_micromet) &mdash; MicroPyzzotMet 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
-      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+  <title>Main workflow (main_micromet) &mdash; MicroPyzzotMet 0.1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../_static/doctools.js?v=9a2dae69"></script>
-      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/documentation_options.js?v=a58bc63e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Downscaling API" href="downscaling.html" />
-    <link rel="prev" title="ERA5 download" href="get_era5_land.html" /> 
+    <link rel="prev" title="MicroPyzzotMet API reference" href="micropyzzotmet.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search" >
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
 
           
           
@@ -57,10 +57,32 @@
 <li class="toctree-l1"><a class="reference internal" href="../methods/temperature_downscaling.html">Temperature Downscaling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../methods/radiation_downscaling.html">Shortwave Radiation Downscaling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../methods/humidity_downscaling.html">Humidity Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../methods/precipitation_downscaling.html">Precipitation Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../methods/wind_downscaling.html">Wind Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../methods/longwave_downscaling.html">Longwave Radiation Downscaling</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="index.html">API Reference</a></li>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="micropyzzotmet.html">MicroPyzzotMet API reference</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Main workflow (main_micromet)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#author">Author</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#micropyzzotmet.main_micromet.run_temperature"><code class="docutils literal notranslate"><span class="pre">run_temperature()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#micropyzzotmet.main_micromet.run_shortwave"><code class="docutils literal notranslate"><span class="pre">run_shortwave()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#micropyzzotmet.main_micromet.run_relative_humidity"><code class="docutils literal notranslate"><span class="pre">run_relative_humidity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#micropyzzotmet.main_micromet.run_precipitation"><code class="docutils literal notranslate"><span class="pre">run_precipitation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#micropyzzotmet.main_micromet.run_wind"><code class="docutils literal notranslate"><span class="pre">run_wind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#micropyzzotmet.main_micromet.run_longwave"><code class="docutils literal notranslate"><span class="pre">run_longwave()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#micropyzzotmet.main_micromet.run_micropezzomet"><code class="docutils literal notranslate"><span class="pre">run_micropezzomet()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="downscaling.html">Downscaling API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="get_era5_land.html">ERA5 download</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html">Utils</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Project info</span></p>
 <ul>
@@ -71,20 +93,21 @@
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../index.html">MicroPyzzotMet</a>
       </nav>
 
       <div class="wy-nav-content">
-        <div class="rst-content">
+        <div class="rst-content style-external-links">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">API Reference</a></li>
+          <li class="breadcrumb-item"><a href="micropyzzotmet.html">MicroPyzzotMet API reference</a></li>
       <li class="breadcrumb-item active">Main workflow (main_micromet)</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/api/main_micromet.rst.txt" rel="nofollow"> View page source</a>
+              <a href="https://github.com/bare92/micropyzzotmet/view/main/docs/source/api/main_micromet.rst" class="fa fa-github"> Edit on GitHub</a>
       </li>
   </ul>
   <hr/>
@@ -101,7 +124,7 @@ It is the programmatic counterpart of running:</p>
 </pre></div>
 </div>
 <p>Use this module if you want to call the full pipeline from Python.</p>
-<p id="module-main_micromet">Main driver script for the MicroPezzottoMet downscaling workflow.</p>
+<p id="module-micropyzzotmet.main_micromet">Main driver script for the MicroPezzottoMet downscaling workflow.</p>
 <dl class="simple">
 <dt>This module orchestrates the full processing chain, including:</dt><dd><ul class="simple">
 <li><p>project folder initialization,</p></li>
@@ -120,8 +143,8 @@ and variables to downscale.</p>
 <p>rbarella</p>
 </section>
 <dl class="py function">
-<dt class="sig sig-object py" id="main_micromet.run_temperature">
-<span class="sig-prename descclassname"><span class="pre">main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_temperature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/main_micromet.html#run_temperature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main_micromet.run_temperature" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="micropyzzotmet.main_micromet.run_temperature">
+<span class="sig-prename descclassname"><span class="pre">micropyzzotmet.main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_temperature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/main_micromet.html#run_temperature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.main_micromet.run_temperature" title="Link to this definition"></a></dt>
 <dd><p>Run air-temperature downscaling for a single climate file.</p>
 <p>This is a lightweight wrapper around <code class="xref py py-func docutils literal notranslate"><span class="pre">downscale_Temperature()</span></code>
 that defines the appropriate output folder and forwards configuration
@@ -129,21 +152,21 @@ options.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>curr_climate_file</strong> (<em>str</em>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
-<li><p><strong>dem_path</strong> (<em>str</em>) – Path to the DEM GeoTIFF.</p></li>
-<li><p><strong>working_directory</strong> (<em>str</em>) – Root project directory.</p></li>
-<li><p><strong>variables_to_downscale</strong> (<em>dict</em>) – Dictionary specifying which variables are enabled (from config).</p></li>
-<li><p><strong>custom_lapse_rates</strong> (<em>dict</em>) – Optional user-defined lapse rates from configuration.</p></li>
-<li><p><strong>dem_nodata</strong> (<em>float</em><em> or </em><em>int</em>) – No-data value used in the DEM.</p></li>
-<li><p><strong>time_chunk</strong> (<em>int</em>) – Number of timesteps processed per write block.</p></li>
+<li><p><strong>curr_climate_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
+<li><p><strong>dem_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the DEM GeoTIFF.</p></li>
+<li><p><strong>working_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Root project directory.</p></li>
+<li><p><strong>variables_to_downscale</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Dictionary specifying which variables are enabled (from config).</p></li>
+<li><p><strong>custom_lapse_rates</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Optional user-defined lapse rates from configuration.</p></li>
+<li><p><strong>dem_nodata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – No-data value used in the DEM.</p></li>
+<li><p><strong>time_chunk</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of timesteps processed per write block.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="main_micromet.run_shortwave">
-<span class="sig-prename descclassname"><span class="pre">main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_shortwave</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/main_micromet.html#run_shortwave"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main_micromet.run_shortwave" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="micropyzzotmet.main_micromet.run_shortwave">
+<span class="sig-prename descclassname"><span class="pre">micropyzzotmet.main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_shortwave</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/main_micromet.html#run_shortwave"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.main_micromet.run_shortwave" title="Link to this definition"></a></dt>
 <dd><p>Run shortwave radiation downscaling for a single climate file.</p>
 <p>This wrapper calls the custom pvlib-based shortwave downscaling
 routine, which applies topographic corrections using slope and
@@ -151,104 +174,104 @@ aspect.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>curr_climate_file</strong> (<em>str</em>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
-<li><p><strong>dem_path</strong> (<em>str</em>) – Path to the DEM GeoTIFF.</p></li>
-<li><p><strong>working_directory</strong> (<em>str</em>) – Root project directory.</p></li>
-<li><p><strong>variables_to_downscale</strong> (<em>dict</em>) – Dictionary specifying which variables are enabled.</p></li>
-<li><p><strong>custom_lapse_rates</strong> (<em>dict</em>) – Unused for shortwave (kept for interface consistency).</p></li>
-<li><p><strong>dem_nodata</strong> (<em>float</em><em> or </em><em>int</em>) – No-data value used in the DEM.</p></li>
-<li><p><strong>time_chunk</strong> (<em>int</em>) – Number of timesteps processed per write block.</p></li>
+<li><p><strong>curr_climate_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
+<li><p><strong>dem_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the DEM GeoTIFF.</p></li>
+<li><p><strong>working_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Root project directory.</p></li>
+<li><p><strong>variables_to_downscale</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Dictionary specifying which variables are enabled.</p></li>
+<li><p><strong>custom_lapse_rates</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Unused for shortwave (kept for interface consistency).</p></li>
+<li><p><strong>dem_nodata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – No-data value used in the DEM.</p></li>
+<li><p><strong>time_chunk</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of timesteps processed per write block.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="main_micromet.run_relative_humidity">
-<span class="sig-prename descclassname"><span class="pre">main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_relative_humidity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/main_micromet.html#run_relative_humidity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main_micromet.run_relative_humidity" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="micropyzzotmet.main_micromet.run_relative_humidity">
+<span class="sig-prename descclassname"><span class="pre">micropyzzotmet.main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_relative_humidity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/main_micromet.html#run_relative_humidity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.main_micromet.run_relative_humidity" title="Link to this definition"></a></dt>
 <dd><p>Run relative humidity downscaling for a single climate file.</p>
 <p>Relative humidity is computed from downscaled air temperature
 and dew point temperature using the Magnus formulation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>curr_climate_file</strong> (<em>str</em>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
-<li><p><strong>dem_path</strong> (<em>str</em>) – Path to the DEM GeoTIFF.</p></li>
-<li><p><strong>working_directory</strong> (<em>str</em>) – Root project directory.</p></li>
-<li><p><strong>variables_to_downscale</strong> (<em>dict</em>) – Dictionary specifying which variables are enabled.</p></li>
-<li><p><strong>custom_lapse_rates</strong> (<em>dict</em>) – Optional monthly lapse rates for temperature.</p></li>
-<li><p><strong>dem_nodata</strong> (<em>float</em><em> or </em><em>int</em>) – No-data value used in the DEM.</p></li>
-<li><p><strong>time_chunk</strong> (<em>int</em>) – Number of timesteps processed per write block.</p></li>
+<li><p><strong>curr_climate_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
+<li><p><strong>dem_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the DEM GeoTIFF.</p></li>
+<li><p><strong>working_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Root project directory.</p></li>
+<li><p><strong>variables_to_downscale</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Dictionary specifying which variables are enabled.</p></li>
+<li><p><strong>custom_lapse_rates</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Optional monthly lapse rates for temperature.</p></li>
+<li><p><strong>dem_nodata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – No-data value used in the DEM.</p></li>
+<li><p><strong>time_chunk</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of timesteps processed per write block.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="main_micromet.run_precipitation">
-<span class="sig-prename descclassname"><span class="pre">main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_precipitation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/main_micromet.html#run_precipitation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main_micromet.run_precipitation" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="micropyzzotmet.main_micromet.run_precipitation">
+<span class="sig-prename descclassname"><span class="pre">micropyzzotmet.main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_precipitation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/main_micromet.html#run_precipitation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.main_micromet.run_precipitation" title="Link to this definition"></a></dt>
 <dd><p>Run precipitation downscaling for a single climate file.</p>
 <p>This wrapper applies the precipitation downscaling routine,
 optionally using user-defined monthly gamma parameters.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>curr_climate_file</strong> (<em>str</em>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
-<li><p><strong>dem_path</strong> (<em>str</em>) – Path to the DEM GeoTIFF.</p></li>
-<li><p><strong>working_directory</strong> (<em>str</em>) – Root project directory.</p></li>
-<li><p><strong>variables_to_downscale</strong> (<em>dict</em>) – Dictionary specifying which variables are enabled.</p></li>
-<li><p><strong>custom_lapse_rates</strong> (<em>dict</em>) – Optional monthly precipitation scaling parameters.</p></li>
-<li><p><strong>dem_nodata</strong> (<em>float</em><em> or </em><em>int</em>) – No-data value used in the DEM.</p></li>
-<li><p><strong>time_chunk</strong> (<em>int</em>) – Number of timesteps processed per write block.</p></li>
+<li><p><strong>curr_climate_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
+<li><p><strong>dem_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the DEM GeoTIFF.</p></li>
+<li><p><strong>working_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Root project directory.</p></li>
+<li><p><strong>variables_to_downscale</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Dictionary specifying which variables are enabled.</p></li>
+<li><p><strong>custom_lapse_rates</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Optional monthly precipitation scaling parameters.</p></li>
+<li><p><strong>dem_nodata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – No-data value used in the DEM.</p></li>
+<li><p><strong>time_chunk</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of timesteps processed per write block.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="main_micromet.run_wind">
-<span class="sig-prename descclassname"><span class="pre">main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_wind</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/main_micromet.html#run_wind"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main_micromet.run_wind" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="micropyzzotmet.main_micromet.run_wind">
+<span class="sig-prename descclassname"><span class="pre">micropyzzotmet.main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_wind</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/main_micromet.html#run_wind"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.main_micromet.run_wind" title="Link to this definition"></a></dt>
 <dd><p>Run wind speed and direction downscaling for a single climate file.</p>
 <p>Wind fields are adjusted using terrain slope and curvature
 to account for topographic acceleration and sheltering effects.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>curr_climate_file</strong> (<em>str</em>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
-<li><p><strong>dem_path</strong> (<em>str</em>) – Path to the DEM GeoTIFF.</p></li>
-<li><p><strong>working_directory</strong> (<em>str</em>) – Root project directory.</p></li>
-<li><p><strong>variables_to_downscale</strong> (<em>dict</em>) – Dictionary specifying which variables are enabled.</p></li>
-<li><p><strong>dem_nodata</strong> (<em>float</em><em> or </em><em>int</em>) – No-data value used in the DEM.</p></li>
-<li><p><strong>time_chunk</strong> (<em>int</em>) – Number of timesteps processed per write block.</p></li>
+<li><p><strong>curr_climate_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
+<li><p><strong>dem_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the DEM GeoTIFF.</p></li>
+<li><p><strong>working_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Root project directory.</p></li>
+<li><p><strong>variables_to_downscale</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Dictionary specifying which variables are enabled.</p></li>
+<li><p><strong>dem_nodata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – No-data value used in the DEM.</p></li>
+<li><p><strong>time_chunk</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of timesteps processed per write block.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="main_micromet.run_longwave">
-<span class="sig-prename descclassname"><span class="pre">main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_longwave</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/main_micromet.html#run_longwave"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main_micromet.run_longwave" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="micropyzzotmet.main_micromet.run_longwave">
+<span class="sig-prename descclassname"><span class="pre">micropyzzotmet.main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_longwave</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curr_climate_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_to_downscale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_lapse_rates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_nodata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_chunk</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/main_micromet.html#run_longwave"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.main_micromet.run_longwave" title="Link to this definition"></a></dt>
 <dd><p>Run longwave radiation downscaling for a single climate file.</p>
 <p>Longwave radiation is adjusted for elevation effects using
 temperature lapse rates and a reference pressure level.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>curr_climate_file</strong> (<em>str</em>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
-<li><p><strong>dem_path</strong> (<em>str</em>) – Path to the DEM GeoTIFF.</p></li>
-<li><p><strong>working_directory</strong> (<em>str</em>) – Root project directory.</p></li>
-<li><p><strong>variables_to_downscale</strong> (<em>dict</em>) – Dictionary specifying which variables are enabled.</p></li>
-<li><p><strong>custom_lapse_rates</strong> (<em>dict</em>) – Optional monthly lapse rates for temperature.</p></li>
-<li><p><strong>dem_nodata</strong> (<em>float</em><em> or </em><em>int</em>) – No-data value used in the DEM.</p></li>
-<li><p><strong>time_chunk</strong> (<em>int</em>) – Number of timesteps processed per write block.</p></li>
+<li><p><strong>curr_climate_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the input ERA5/ERA5-Land NetCDF file.</p></li>
+<li><p><strong>dem_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the DEM GeoTIFF.</p></li>
+<li><p><strong>working_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Root project directory.</p></li>
+<li><p><strong>variables_to_downscale</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Dictionary specifying which variables are enabled.</p></li>
+<li><p><strong>custom_lapse_rates</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Optional monthly lapse rates for temperature.</p></li>
+<li><p><strong>dem_nodata</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – No-data value used in the DEM.</p></li>
+<li><p><strong>time_chunk</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of timesteps processed per write block.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="main_micromet.run_micropezzomet">
-<span class="sig-prename descclassname"><span class="pre">main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_micropezzomet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/main_micromet.html#run_micropezzomet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#main_micromet.run_micropezzomet" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="micropyzzotmet.main_micromet.run_micropezzomet">
+<span class="sig-prename descclassname"><span class="pre">micropyzzotmet.main_micromet.</span></span><span class="sig-name descname"><span class="pre">run_micropezzomet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/micropyzzotmet/main_micromet.html#run_micropezzomet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#micropyzzotmet.main_micromet.run_micropezzomet" title="Link to this definition"></a></dt>
 <dd><p>Execute the full MicroPezzottoMet downscaling workflow.</p>
 <dl class="simple">
 <dt>This function controls the complete processing pipeline:</dt><dd><ol class="arabic simple">
@@ -266,7 +289,7 @@ temperature lapse rates and a reference pressure level.</p>
 parallelization settings) are read from the configuration file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>config_path</strong> (<em>str</em>) – Path to the JSON configuration file.</p>
+<dd class="field-odd"><p><strong>config_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the JSON configuration file.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Executes the workflow and writes results to disk.</p>
@@ -276,8 +299,8 @@ parallelization settings) are read from the configuration file.</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>ValueError</strong> – If configuration options are inconsistent or invalid.</p></li>
-<li><p><strong>RuntimeError</strong> – If required input data cannot be located or generated.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If configuration options are inconsistent or invalid.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If required input data cannot be located or generated.</p></li>
 </ul>
 </dd>
 </dl>
@@ -289,7 +312,7 @@ parallelization settings) are read from the configuration file.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="get_era5_land.html" class="btn btn-neutral float-left" title="ERA5 download" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="micropyzzotmet.html" class="btn btn-neutral float-left" title="MicroPyzzotMet API reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="downscaling.html" class="btn btn-neutral float-right" title="Downscaling API" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

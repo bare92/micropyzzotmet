@@ -1,7 +1,7 @@
 ERA5 download
 =============
 
-.. automodule:: get_era5_land
+.. automodule:: micropyzzotmet.get_era5_land
    :members:
    :undoc-members:
 

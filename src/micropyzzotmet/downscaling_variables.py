@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 """
 Created on Mon Jun 30 14:18:55 2025
 
@@ -49,17 +51,17 @@ def downscale_Temperature(
     """
     Downscale ERA5/ERA5-Land 2 m air temperature (``t2m``) to a high-resolution DEM grid.
     
-    The method:
-      1. Opens the DEM raster and uses its grid/CRS/transform as target.
-      2. Opens the climate NetCDF and reads ``t2m`` on the ERA grid.
-      3. Reads geopotential (``./auxiliary_data/geopotential3.nc``, variable ``z``) to
-         estimate ERA-grid elevations (meters).
-      4. Applies a vertical lapse-rate correction:
-         - **Fixed monthly lapse rates** (MicroMet defaults) OR
-         - **User-provided** monthly lapse rates OR
-         - **Calibrated** lapse rate (linear regression of T vs elevation per timestep).
-      5. Reprojects the "sea-level" temperature field to the DEM grid (bilinear).
-      6. Applies the lapse-rate correction using DEM elevations.
+     Workflow
+
+     1. Opens the DEM raster and uses its grid/CRS/transform as target.
+     2. Opens the climate NetCDF and reads ``t2m`` on the ERA grid.
+     3. Reads packaged geopotential data (variable ``z``) to estimate ERA-grid
+         elevations (meters).
+     4. Applies a vertical lapse-rate correction using fixed monthly lapse rates,
+         user-provided monthly lapse rates, or a calibrated lapse rate from linear
+         regression of temperature versus elevation per timestep.
+     5. Reprojects the "sea-level" temperature field to the DEM grid (bilinear).
+     6. Applies the lapse-rate correction using DEM elevations.
     
     Output is written as a **monthly** NetCDF file named:
     ``temperature_downscaled_YYYY_MM.nc`` in ``output_folder_T``.
@@ -596,15 +598,17 @@ def downscale_RH(
     Relative humidity is computed using the Magnus formulation from downscaled
     air temperature and dew point temperature.
 
-    The workflow:
-      1. Read DEM raster to define target grid/CRS/transform.
-      2. Open climate NetCDF and read ``t2m`` and ``d2m``.
-      3. Read geopotential (``./auxiliary_data/geopotential3.nc``) to estimate ERA-grid elevation.
-      4. Apply lapse-rate corrections:
-         - temperature lapse rate (monthly default or user-provided), and
-         - dew-point lapse rate derived from empirical monthly vapor-pressure coefficients.
-      5. Reproject sea-level temperature/dewpoint fields to DEM grid (bilinear).
-      6. Compute RH (%) on the DEM grid and write output in chunks.
+     Workflow
+
+     1. Read DEM raster to define target grid/CRS/transform.
+     2. Open climate NetCDF and read ``t2m`` and ``d2m``.
+     3. Read packaged geopotential data to estimate ERA-grid elevation.
+     4. Apply lapse-rate corrections using a temperature lapse rate (monthly
+         default or user-provided) and a dew-point lapse rate derived from
+         empirical monthly vapor-pressure coefficients.
+     5. Reproject sea-level temperature/dewpoint fields to the DEM grid
+         (bilinear).
+     6. Compute RH (%) on the DEM grid and write output in chunks.
 
     Output is written as a **monthly** NetCDF file named:
     ``relative_humidity_YYYY_MM.nc`` in ``output_folder_RH``.
@@ -1100,20 +1104,21 @@ def downscale_Wind(
     """
     Downscale 10 m wind speed and wind direction to a DEM grid using terrain modifiers.
 
-    This function downsamples ERA5/ERA5-Land ``u10`` and ``v10`` winds to a high-resolution DEM grid
-    and applies terrain-based adjustments using:
-      - local terrain slope/aspect (computed from DEM), and
-      - terrain curvature (read from a raster)
+        This function downsamples ERA5/ERA5-Land ``u10`` and ``v10`` winds to a
+        high-resolution DEM grid and applies terrain-based adjustments using local
+        terrain slope/aspect from the DEM and terrain curvature from a raster.
 
-    The workflow:
-      1. Read DEM raster to define target grid/CRS/transform.
-      2. Read curvature raster from ``<working_directory>/inputs/dem/*curvature*.tif``.
-      3. Open climate NetCDF and read ``u10`` and ``v10``.
-      4. Reproject u/v winds from ERA grid to DEM grid (bilinear).
-      5. Compute wind speed and base wind direction.
-      6. Compute slope-wind interaction and normalize slope + curvature terms.
-      7. Apply a wind-speed scaling factor and a directional deflection term.
-      8. Write ``wind_speed`` and ``wind_direction`` to a CF-compliant NetCDF in chunks.
+        Workflow
+
+        1. Read DEM raster to define target grid/CRS/transform.
+        2. Read curvature raster from ``<working_directory>/inputs/dem/*curvature*.tif``.
+        3. Open climate NetCDF and read ``u10`` and ``v10``.
+        4. Reproject u/v winds from the ERA grid to the DEM grid (bilinear).
+        5. Compute wind speed and base wind direction.
+        6. Compute slope-wind interaction and normalize slope and curvature terms.
+        7. Apply a wind-speed scaling factor and a directional deflection term.
+        8. Write ``wind_speed`` and ``wind_direction`` to a CF-compliant NetCDF in
+             chunks.
 
     Output is written as a **monthly** NetCDF file named:
     ``wind_speed_direction_YYYY_MM.nc`` in ``output_folder_W``.
@@ -1399,60 +1404,67 @@ def downscale_LW(
 ):
     
     """
-Downscale incoming longwave radiation to a DEM grid using atmospheric emissivity parameterization.
+    Downscale incoming longwave radiation to a DEM grid using atmospheric emissivity parameterization.
 
-This function estimates downscaled longwave radiation using ERA5/ERA5-Land air temperature (t2m),
-dew point (d2m), and cloud fraction estimated from RH at ~700 hPa.
+    This function estimates downscaled longwave radiation using ERA5/ERA5-Land
+    air temperature (t2m), dew point (d2m), and cloud fraction estimated from
+    RH at ~700 hPa.
 
-The workflow:
-  1. Read DEM raster to define target grid/CRS/transform.
-  2. Open climate NetCDF and read ``t2m`` and ``d2m``.
-  3. Read geopotential (``./auxiliary_data/geopotential3.nc``) to estimate ERA-grid elevation.
-  4. Apply lapse-rate corrections to compute temperature/dew point at 700 hPa level approximation.
-  5. Estimate RH_700 and cloud fraction.
-  6. Compute atmospheric emissivity using elevation-dependent coefficients (X, Y, Z).
-  7. Compute longwave radiation on ERA grid: ``Qli = eps_atm * sigma * T^4``.
-  8. Reproject Qli to DEM grid (bilinear) and write output in chunks.
+    Workflow
 
-Output is written as a **monthly** NetCDF file named:
-``longwave_downscaled_YYYY_MM.nc`` in ``output_folder_LW``.
+    1. Read DEM raster to define target grid/CRS/transform.
+    2. Open climate NetCDF and read ``t2m`` and ``d2m``.
+    3. Read packaged geopotential data to estimate ERA-grid elevation.
+    4. Apply lapse-rate corrections to compute temperature and dew point at the
+       700 hPa level approximation.
+    5. Estimate ``RH_700`` and cloud fraction.
+    6. Compute atmospheric emissivity using elevation-dependent coefficients
+       ``X``, ``Y``, and ``Z``.
+    7. Compute longwave radiation on the ERA grid:
+       ``Qli = eps_atm * sigma * T^4``.
+    8. Reproject ``Qli`` to the DEM grid (bilinear) and write output in chunks.
 
-Notes
------
-- Uses Stefan–Boltzmann constant ``sigma = 5.67e-8``.
-- If ``calibrate_lapse_rate=True``, lapse rate is estimated per timestep by regression of
-  ERA-grid temperature vs ERA-grid elevation.
-- Output NetCDF includes CF grid mapping information for QGIS/GDAL.
+    Output is written as a **monthly** NetCDF file named
+    ``longwave_downscaled_YYYY_MM.nc`` in ``output_folder_LW``.
 
-Parameters
-----------
-dem_path : str or pathlib.Path
-    Path to DEM GeoTIFF.
-curr_climate_file : str or pathlib.Path
-    Path to monthly climate NetCDF containing ``t2m`` and ``d2m``.
-output_folder_LW : str or pathlib.Path
-    Output directory where the monthly NetCDF will be saved.
-z_700 : float, default 3000
-    Reference height (m) used for the 700 hPa approximation.
-custom_lapse_rate : array-like of length 12, optional
-    Monthly temperature lapse rates in K/km. Mutually exclusive with ``calibrate_lapse_rate=True``.
-calibrate_lapse_rate : bool, default False
-    If True, estimate lapse rate dynamically from ERA-grid temperature vs elevation.
-dem_nodata : float or int, optional
-    Value representing nodata in the DEM. If None, NaNs are used.
-time_chunk : int, default 24
-    Number of timesteps to process/write per block.
+    Notes
+    -----
+    - Uses Stefan-Boltzmann constant ``sigma = 5.67e-8``.
+    - If ``calibrate_lapse_rate=True``, lapse rate is estimated per timestep by
+      regression of ERA-grid temperature vs ERA-grid elevation.
+    - Output NetCDF includes CF grid mapping information for QGIS/GDAL.
 
-Returns
--------
-None
-    Writes a NetCDF file to disk and returns.
+    Parameters
+    ----------
+    dem_path : str or pathlib.Path
+        Path to DEM GeoTIFF.
+    curr_climate_file : str or pathlib.Path
+        Path to monthly climate NetCDF containing ``t2m`` and ``d2m``.
+    output_folder_LW : str or pathlib.Path
+        Output directory where the monthly NetCDF will be saved.
+    z_700 : float, default 3000
+        Reference height (m) used for the 700 hPa approximation.
+    custom_lapse_rate : array-like of length 12, optional
+        Monthly temperature lapse rates in K/km. Mutually exclusive with
+        ``calibrate_lapse_rate=True``.
+    calibrate_lapse_rate : bool, default False
+        If True, estimate lapse rate dynamically from ERA-grid temperature vs
+        elevation.
+    dem_nodata : float or int, optional
+        Value representing nodata in the DEM. If None, NaNs are used.
+    time_chunk : int, default 24
+        Number of timesteps to process/write per block.
 
-Raises
-------
-ValueError
-    If incompatible options are provided.
-"""
+    Returns
+    -------
+    None
+        Writes a NetCDF file to disk and returns.
+
+    Raises
+    ------
+    ValueError
+        If incompatible options are provided.
+    """
 
 
     import numpy as np

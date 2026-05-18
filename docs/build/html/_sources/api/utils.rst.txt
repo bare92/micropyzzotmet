@@ -1,7 +1,7 @@
 Utils
 =====
 
-.. automodule:: utils
+.. automodule:: micropyzzotmet.utils
    :members:
    :undoc-members:
    :show-inheritance:

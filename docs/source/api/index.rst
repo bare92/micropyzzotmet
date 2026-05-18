@@ -12,9 +12,6 @@ signatures and docstrings extracted automatically from the code.
 .. toctree::
    :maxdepth: 2
 
-   get_era5_land
-   main_micromet
-   downscaling
-   utils
+   micropyzzotmet
 
 

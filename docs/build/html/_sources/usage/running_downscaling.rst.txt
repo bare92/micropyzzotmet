@@ -1,182 +1,82 @@
 Running the downscaling
 =======================
 
-This page explains how to execute the full MicroPyzzotMet workflow using
-a JSON configuration file. The process includes DEM preparation,
-ERA5-Land download or ingestion, and downscaling of all selected
-meteorological variables.
+This page describes how to run the current CLI workflow.
 
-Overview of the workflow
-------------------------
+Run command
+-----------
 
-A typical downscaling run consists of:
+From the repository root::
 
-1. Preparing or downloading a DEM.
-2. Preparing or downloading the ERA5-Land meteorological data.
-3. Creating a JSON configuration file describing the domain and settings.
-4. Running the main entry point ``main_micromet.py``.
-5. Inspecting the generated outputs in the ``working_directory``.
+    micropyzzotmet path/to/config.json
 
-All steps are automated based on the configuration file.
+Example::
 
-Running MicroPyzzotMet
+    micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
+
+What the workflow does
 ----------------------
 
-The main entry point is ``main_micromet.py``. To run the full workflow::
+The run function performs these main steps:
 
-    python main_micromet.py path/to/your_config.json
+1. Load the JSON config.
+2. Create the folder structure under ``working_directory``.
+3. Prepare the DEM:
 
-Internally, the script performs the following steps:
+   - Use ``dem_file`` if provided, or
+   - Download the DEM from EarthDataHub when ``dem_file`` is ``null``.
 
-1. **Load and validate the configuration**  
-   The JSON file is parsed, all paths are checked, ``"y"/"n"`` flags are
-   converted to booleans, and optional fields receive defaults.  
-   (See :func:`load_and_validate_config`).  
-   Typical validations include ensuring:
-   - output folders can be created
-   - EarthDataHub PAT is provided when required
-   - date ranges are valid  
-   - DEM and climate inputs exist or can be downloaded
-
-2. **Create the directory structure**  
-   ``inputs/`` and ``outputs/`` folders are created automatically in the  
-   ``working_directory``.  
-   This uses :func:`create_full_micromet_folder_structure`.  
-   The structure looks like::
-
-       working_directory/
-       ├── inputs/
-       │   ├── climate/
-       │   └── dem/
-       └── outputs/
-           ├── Temperature/
-           ├── SW/
-           ├── RH/
-           ├── P/
-           ├── Wind/
-           ├── LW/
-
-3. **DEM preparation**  
-   Depending on the configuration:
-   - If ``dem_file`` is set, this DEM is copied into ``inputs/dem``.
-   - If ``dem_file`` is ``null``, MicroPyzzotMet downloads a DEM using
-     Copernicus GLO-30 via EarthDataHub.  
-     This is handled by :func:`download_and_save_dem_from_config`,
-     including:
-     - retrieving DEM tiles
-     - cropping to the requested extent
-     - reprojecting to ``download_dem_epsg``
-     - resampling to the requested resolution
-
-   Once available, the DEM is processed into:
-   - slope
-   - aspect
-   - curvature  
-   via :func:`calculate_topographic_parameters`.
-
-4. **Download or load ERA5-Land climate data**  
-   If ``era_file`` is ``null``:  
-   MicroPyzzotMet automatically downloads ERA5-Land using EarthDataHub,
-   month by month, via :func:`get_era5`.  
-
-   ERA5 streams and variables handled:
-   - ``t2m`` (temperature)
-   - ``u10``, ``v10`` (wind)
-   - ``tp`` (precipitation)
-   - ``ssrd`` (shortwave radiation)
-   - ``strd`` (longwave radiation)
-   - ``z`` (geopotential, used for temperature lapse rate calibration)
-
-   The files are saved under::
-
-       working_directory/inputs/climate/era_YYYY_MM.nc
-
-5. **Downscaling of meteorological variables**  
-   For each variable with flag ``"y"`` under ``variables_to_downscale``,
-   the corresponding downscaling routine is executed:
-
-   - ``t_air`` → temperature  
-     :func:`downscale_temperature`
-   - ``sw_radiation`` → shortwave  
-     :func:`downscale_shortwave`
-   - ``relative_humidity`` → RH  
-     :func:`downscale_relative_humidity`
-   - ``precipitation`` → rainfall or snowfall  
-     :func:`downscale_precipitation`
-   - ``wind`` → 10m wind field  
-     :func:`downscale_wind`
-   - ``lw_radiation`` → longwave  
-     :func:`downscale_longwave`
-
-   Each variable is processed month by month.  
-   Parallelisation is controlled by ``jobs_parallel_downscale``.
-
-6. **(Optional) Generate S3M-ready files**  
-   If ``generate_s3m_input`` is set to ``"y"``, the function  
-   :func:`convert_micromet_to_s3m_inputs` creates daily  
-   ``.nc.gz`` files suitable for the S3M snow model.
-
-Monitoring progress
--------------------
-
-During execution, messages printed on screen (via ``print`` and ``tqdm``)
-indicate:
-
-- DEM download and preparation status  
-- Climate file downloads and processing  
-- Downscaling progress for each variable  
-- Monthly loops and parallel execution status  
-- S3M file generation (if enabled)
-
-Typical run command
--------------------
-
-After creating a configuration file, a full run looks like::
-
-    conda activate microenv
-    python main_micromet.py ./config/my_config.json
-
-Depending on the domain size and variable selection, this may take from
-minutes (small DEM, few variables) to hours (large DEM, many years).
+4. Download ERA5-Land when ``era_file`` is ``null``.
+5. Compute slope, aspect, and curvature.
+6. Downscale all enabled variables month-by-month in parallel.
+7. Optionally create S3M forcing files.
 
 Outputs
 -------
 
-All results are written in ``working_directory/outputs``. For example::
+All outputs are written under ``<working_directory>/outputs``::
 
     outputs/
     ├── Temperature/
-    │   ├── t_air_2017_04.nc
-    │   ├── t_air_2017_05.nc
-    │   └── ...
     ├── SW/
     ├── RH/
     ├── P/
     ├── Wind/
-    └── LW/
+    ├── LW/
+    └── s3m/   # only when generate_s3m_input = "y"
 
-Each folder contains monthly downscaled fields on the DEM grid.
+Input expectations
+------------------
 
-If S3M export is enabled::
+- Runs are not tied to the repository root; auxiliary geopotential data is loaded from packaged resources.
+- If ``era_file`` is non-null and automatic download is skipped, ensure climate
+  NetCDF files already exist in ``<working_directory>/inputs/climate``.
+- Configure EarthDataHub credentials via PAT or ``~/.netrc``.
 
-    outputs/s3m/*.nc.gz
-
-These are ready to be used by the Fortran S3M snow model.
-
-Example quick run
+Parallel settings
 -----------------
 
-A minimal end-to-end example::
+- ``jobs_parallel_download`` controls download processing parallelism.
+- ``jobs_parallel_downscale`` controls per-variable monthly downscaling jobs.
 
-    git clone https://github.com/bare92/micropyzzotmet
-    cd micropyzzotmet
+Monitoring progress
+-------------------
 
-    chmod +x setup_micropyzzotmet_env.sh
-    ./setup_micropyzzotmet_env.sh
-    conda activate microenv
+During execution, the code prints progress messages for:
 
-    python main_micromet.py ./config/micro_config_DEMP_MAIPO.json
+- DEM creation and terrain derivatives
+- ERA5-Land download and monthly processing
+- each downscaled variable
+- optional S3M file generation
 
-This runs the complete workflow on the Maipo domain.
+Troubleshooting notes
+---------------------
+
+- If you see PROJ database errors, ensure only one active geospatial stack is
+  being used in the active environment.
+- If zarr or filesystem import errors appear, verify ``fsspec``, ``s3fs``, and
+  ``dask`` are installed.
+- If automatic download is skipped, verify monthly climate files exist in the
+  expected climate input folder before launching the run.
 
 

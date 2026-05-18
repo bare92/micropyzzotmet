@@ -1,7 +1,7 @@
 Downscaling API
 ===============
 
-.. automodule:: downscaling_variables
+.. automodule:: micropyzzotmet.downscaling_variables
    :members:
    :undoc-members:
    :show-inheritance:

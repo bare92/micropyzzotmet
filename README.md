@@ -317,17 +317,13 @@ This is the recommended route if you want to modify code, run tests, or contribu
 
 A few details are worth knowing for the current codebase:
 
-### Run from the repository root
+### Working directory behavior
 
-The current temperature downscaling code reads the auxiliary geopotential file from:
+The auxiliary geopotential file is loaded from package data (via
+``importlib.resources``), so runs are not tied to the repository root.
 
-```text
-./auxiliary_data/geopotential3.nc
-```
-
-For that reason, the safest way to run the package at the moment is **from the repository root**, not from an arbitrary working directory.
-
-This means that, even if a future PyPI installation path is available, some workflows may still be easiest when launched from a repository checkout until all repository-relative paths are fully removed from the runtime code.
+You can launch the workflow from any working directory as long as your config
+paths and input/output folders are set correctly.
 
 ### `era_file` currently acts as a download switch
 

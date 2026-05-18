@@ -48,7 +48,7 @@ All outputs are written under ``<working_directory>/outputs``::
 Input expectations
 ------------------
 
-- Run from the repository root for reliable access to auxiliary data.
+- Runs are not tied to the repository root; auxiliary geopotential data is loaded from packaged resources.
 - If ``era_file`` is non-null and automatic download is skipped, ensure climate
   NetCDF files already exist in ``<working_directory>/inputs/climate``.
 - Configure EarthDataHub credentials via PAT or ``~/.netrc``.

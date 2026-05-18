@@ -3,19 +3,19 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to MicroPyzzotMet’s documentation! &mdash; MicroPyzzotMet 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=92fd9be5" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+  <title>Welcome to MicroPyzzotMet’s documentation! &mdash; MicroPyzzotMet 0.1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=01f34227"></script>
-      <script src="_static/doctools.js?v=9a2dae69"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/documentation_options.js?v=a58bc63e"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -26,7 +26,7 @@
   <div class="wy-grid-for-nav">
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search" >
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
 
           
           
@@ -56,6 +56,9 @@
 <li class="toctree-l1"><a class="reference internal" href="methods/temperature_downscaling.html">Temperature Downscaling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="methods/radiation_downscaling.html">Shortwave Radiation Downscaling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="methods/humidity_downscaling.html">Humidity Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="methods/precipitation_downscaling.html">Precipitation Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="methods/wind_downscaling.html">Wind Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="methods/longwave_downscaling.html">Longwave Radiation Downscaling</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -70,19 +73,19 @@
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="#">MicroPyzzotMet</a>
       </nav>
 
       <div class="wy-nav-content">
-        <div class="rst-content">
+        <div class="rst-content style-external-links">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Welcome to MicroPyzzotMet’s documentation!</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+              <a href="https://github.com/bare92/micropyzzotmet/view/main/docs/source/index.rst" class="fa fa-github"> Edit on GitHub</a>
       </li>
   </ul>
   <hr/>
@@ -101,19 +104,19 @@ reanalysis data such as ERA5-Land, with a focus on snow and mountain application
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#requirements">Requirements</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#clone-the-repository">Clone the repository</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#environment-setup-recommended">Environment setup (recommended)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#environment-details">Environment details</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#activating-the-environment">Activating the environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#recommended-installation-venv">Recommended installation (venv)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#installed-python-dependencies">Installed Python dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#earthdatahub-authentication">EarthDataHub authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#alternative-setup-script-conda">Alternative setup script (conda)</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="quickstart.html#clone-the-repository">1. Clone the repository</a></li>
-<li class="toctree-l2"><a class="reference internal" href="quickstart.html#set-up-the-environment">2. Set up the environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#create-and-activate-a-virtual-environment">2. Create and activate a virtual environment</a></li>
 <li class="toctree-l2"><a class="reference internal" href="quickstart.html#prepare-your-configuration-file">3. Prepare your configuration file</a></li>
-<li class="toctree-l2"><a class="reference internal" href="quickstart.html#run-the-downscaling-model">4. Run the downscaling model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="quickstart.html#understanding-the-output-structure">5. Understanding the output structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="quickstart.html#example-running-the-maipo-workflow">Example: running the Maipo workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="quickstart.html#example-bash-script">Example bash script</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#run-the-downscaling-workflow">4. Run the downscaling workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#check-outputs">5. Check outputs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#example-launcher-script">Example launcher script</a></li>
 </ul>
 </li>
 </ul>
@@ -122,23 +125,22 @@ reanalysis data such as ERA5-Land, with a focus on snow and mountain application
 <p class="caption" role="heading"><span class="caption-text">Usage</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="usage/config_files.html">Configuration files</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#basic-structure">Basic structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#example-configuration">Example configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#paths-working-directory-and-folder-structure">Paths, working directory and folder structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#era5-land-configuration">ERA5-Land configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#variables-to-downscale">Variables to downscale</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#dem-and-lapse-rate-options">DEM and lapse-rate options</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#parallelisation-and-performance">Parallelisation and performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#optional-s3m-output">Optional S3M output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#core-fields">Core fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#authentication-fields">Authentication fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#variable-and-time-controls">Variable and time controls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#lapse-rate-and-parallel-settings">Lapse-rate and parallel settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#optional-s3m-export">Optional S3M export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/config_files.html#complete-example">Complete example</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="usage/running_downscaling.html">Running the downscaling</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#overview-of-the-workflow">Overview of the workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#running-micropyzzotmet">Running MicroPyzzotMet</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#monitoring-progress">Monitoring progress</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#typical-run-command">Typical run command</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#run-command">Run command</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#what-the-workflow-does">What the workflow does</a></li>
 <li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#outputs">Outputs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#example-quick-run">Example quick run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#input-expectations">Input expectations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#parallel-settings">Parallel settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#monitoring-progress">Monitoring progress</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/running_downscaling.html#troubleshooting-notes">Troubleshooting notes</a></li>
 </ul>
 </li>
 </ul>
@@ -173,16 +175,40 @@ reanalysis data such as ERA5-Land, with a focus on snow and mountain application
 <li class="toctree-l2"><a class="reference internal" href="methods/humidity_downscaling.html#summary">Summary</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="methods/precipitation_downscaling.html">Precipitation Downscaling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="methods/precipitation_downscaling.html#conceptual-overview">Conceptual Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/precipitation_downscaling.html#method-summary">Method Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/precipitation_downscaling.html#what-this-method-captures">What This Method Captures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/precipitation_downscaling.html#what-this-method-does-not-capture">What This Method Does Not Capture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/precipitation_downscaling.html#output">Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/precipitation_downscaling.html#summary">Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="methods/wind_downscaling.html">Wind Downscaling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="methods/wind_downscaling.html#conceptual-overview">Conceptual Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/wind_downscaling.html#method-summary">Method Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/wind_downscaling.html#what-this-method-captures">What This Method Captures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/wind_downscaling.html#what-this-method-does-not-capture">What This Method Does Not Capture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/wind_downscaling.html#output">Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/wind_downscaling.html#summary">Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="methods/longwave_downscaling.html">Longwave Radiation Downscaling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="methods/longwave_downscaling.html#conceptual-overview">Conceptual Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/longwave_downscaling.html#method-summary">Method Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/longwave_downscaling.html#what-this-method-captures">What This Method Captures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/longwave_downscaling.html#what-this-method-does-not-do">What This Method Does <em>Not</em> Do</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/longwave_downscaling.html#output">Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="methods/longwave_downscaling.html#summary">Summary</a></li>
+</ul>
+</li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/get_era5_land.html">ERA5 download</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/main_micromet.html">Main workflow (main_micromet)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/downscaling.html">Downscaling API</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/utils.html">Utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/micropyzzotmet.html">MicroPyzzotMet API reference</a></li>
 </ul>
 </li>
 </ul>

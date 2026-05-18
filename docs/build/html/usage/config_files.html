@@ -3,19 +3,19 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Configuration files &mdash; MicroPyzzotMet 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
-      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+  <title>Configuration files &mdash; MicroPyzzotMet 0.1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../_static/doctools.js?v=9a2dae69"></script>
-      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/documentation_options.js?v=a58bc63e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -27,7 +27,7 @@
   <div class="wy-grid-for-nav">
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
-        <div class="wy-side-nav-search" >
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
 
           
           
@@ -50,14 +50,12 @@
 <p class="caption" role="heading"><span class="caption-text">Usage</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Configuration files</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#basic-structure">Basic structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#example-configuration">Example configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#paths-working-directory-and-folder-structure">Paths, working directory and folder structure</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#era5-land-configuration">ERA5-Land configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#variables-to-downscale">Variables to downscale</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#dem-and-lapse-rate-options">DEM and lapse-rate options</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#parallelisation-and-performance">Parallelisation and performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#optional-s3m-output">Optional S3M output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-fields">Core fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#authentication-fields">Authentication fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#variable-and-time-controls">Variable and time controls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lapse-rate-and-parallel-settings">Lapse-rate and parallel settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#optional-s3m-export">Optional S3M export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#complete-example">Complete example</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="running_downscaling.html">Running the downscaling</a></li>
@@ -67,6 +65,9 @@
 <li class="toctree-l1"><a class="reference internal" href="../methods/temperature_downscaling.html">Temperature Downscaling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../methods/radiation_downscaling.html">Shortwave Radiation Downscaling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../methods/humidity_downscaling.html">Humidity Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../methods/precipitation_downscaling.html">Precipitation Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../methods/wind_downscaling.html">Wind Downscaling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../methods/longwave_downscaling.html">Longwave Radiation Downscaling</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
@@ -81,19 +82,19 @@
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../index.html">MicroPyzzotMet</a>
       </nav>
 
       <div class="wy-nav-content">
-        <div class="rst-content">
+        <div class="rst-content style-external-links">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Configuration files</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/usage/config_files.rst.txt" rel="nofollow"> View page source</a>
+              <a href="https://github.com/bare92/micropyzzotmet/view/main/docs/source/usage/config_files.rst" class="fa fa-github"> Edit on GitHub</a>
       </li>
   </ul>
   <hr/>
@@ -103,49 +104,103 @@
              
   <section id="configuration-files">
 <h1>Configuration files<a class="headerlink" href="#configuration-files" title="Link to this heading"></a></h1>
-<p>MicroPyzzotMet is driven by a single JSON configuration file, passed to
-<code class="docutils literal notranslate"><span class="pre">main_micromet.py</span></code>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">main_micromet</span><span class="o">.</span><span class="n">py</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your_config</span><span class="o">.</span><span class="n">json</span>
+<p>MicroPyzzotMet is driven by a JSON configuration file passed to the CLI:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">micropyzzotmet</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your_config</span><span class="o">.</span><span class="n">json</span>
 </pre></div>
 </div>
-<p>The configuration controls:</p>
+<p>This page documents the keys currently used by the code.</p>
+<section id="core-fields">
+<h2>Core fields<a class="headerlink" href="#core-fields" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>Working directory and folder structure</p></li>
-<li><p>How the DEM is provided or downloaded</p></li>
-<li><p>How ERA5-Land data are obtained and pre-processed</p></li>
-<li><p>Which variables are downscaled</p></li>
-<li><p>Run period and processing options</p></li>
-<li><p>Parallelisation and optional S3M output</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">working_directory</span></code>
+Base output folder where <code class="docutils literal notranslate"><span class="pre">inputs/</span></code> and <code class="docutils literal notranslate"><span class="pre">outputs/</span></code> are created.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dem_file</span></code>
+Path to an existing DEM GeoTIFF, or <code class="docutils literal notranslate"><span class="pre">null</span></code> to download the DEM from
+EarthDataHub.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">download_dem_extent</span></code>
+Required when <code class="docutils literal notranslate"><span class="pre">dem_file</span></code> is <code class="docutils literal notranslate"><span class="pre">null</span></code>. Object with <code class="docutils literal notranslate"><span class="pre">lat_min</span></code>,
+<code class="docutils literal notranslate"><span class="pre">lat_max</span></code>, <code class="docutils literal notranslate"><span class="pre">lon_min</span></code>, <code class="docutils literal notranslate"><span class="pre">lon_max</span></code> in the CRS defined by
+<code class="docutils literal notranslate"><span class="pre">download_dem_epsg</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">download_dem_epsg</span></code>
+Target EPSG code for downloaded DEM.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">download_dem_resolution</span></code>
+Target DEM resolution in meters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">output_filename_dem</span></code>
+Filename for downloaded DEM inside <code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/inputs/dem</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">era_file</span></code>
+Currently used as a switch:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">null</span></code>: download ERA5-Land into <code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/inputs/climate</span></code>.</p></li>
+<li><p>non-null: skip automatic download. In that case, climate files are
+expected to already exist in <code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/inputs/climate</span></code>.</p></li>
 </ul>
-<p>Below we describe each key and provide a complete example.</p>
-<section id="basic-structure">
-<h2>Basic structure<a class="headerlink" href="#basic-structure" title="Link to this heading"></a></h2>
-<p>A minimal configuration contains:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">working_directory</span></code>: base folder where <code class="docutils literal notranslate"><span class="pre">inputs/</span></code> and <code class="docutils literal notranslate"><span class="pre">outputs/</span></code> are
-created (automatically by <code class="docutils literal notranslate"><span class="pre">create_full_micromet_folder_structure</span></code>). :contentReference[oaicite:0]{index=0}</p></li>
-<li><p>DEM configuration: either point to an existing DEM (<code class="docutils literal notranslate"><span class="pre">dem_file</span></code>) or ask
-MicroPyzzotMet to download a Copernicus DEM patch using
-<code class="docutils literal notranslate"><span class="pre">download_dem_*</span></code> fields. :contentReference[oaicite:1]{index=1}</p></li>
-<li><p>ERA5 configuration: either point to existing NetCDF files (<code class="docutils literal notranslate"><span class="pre">era_file</span></code>) or
-trigger ERA5-Land download via <code class="docutils literal notranslate"><span class="pre">earthdatahub_pat</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">variables_to_downscale</span></code>: choose which fields to process (temperature,
-radiation, etc.), using <code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code> flags.</p></li>
-<li><p>Temporal range: <code class="docutils literal notranslate"><span class="pre">start_date</span></code> and <code class="docutils literal notranslate"><span class="pre">end_date</span></code> (inclusive).</p></li>
-<li><p>Optional advanced options: lapse-rates, parallel jobs, daily aggregation,
-S3M output, buffer size for NetCDF writes, etc.</p></li>
+</li>
 </ul>
 </section>
-<section id="example-configuration">
-<h2>Example configuration<a class="headerlink" href="#example-configuration" title="Link to this heading"></a></h2>
-<p>Below is a complete example configuration (based on your current setup),
-with a <strong>placeholder</strong> for the personal access token (PAT) that you should
-obtain from <code class="docutils literal notranslate"><span class="pre">earthdatahub.destine.eu</span></code> and <strong>never commit in plain text</strong>:</p>
+<section id="authentication-fields">
+<h2>Authentication fields<a class="headerlink" href="#authentication-fields" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">earthdatahub_pat</span></code>
+EarthDataHub personal access token.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">earthdatahub_machine</span></code> (optional)
+Machine name for <code class="docutils literal notranslate"><span class="pre">~/.netrc</span></code> lookup. Default is <code class="docutils literal notranslate"><span class="pre">earthdatahub.com</span></code>.</p></li>
+</ul>
+<p>Use either <code class="docutils literal notranslate"><span class="pre">earthdatahub_pat</span></code> or a valid <code class="docutils literal notranslate"><span class="pre">~/.netrc</span></code> entry.</p>
+</section>
+<section id="variable-and-time-controls">
+<h2>Variable and time controls<a class="headerlink" href="#variable-and-time-controls" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">variables_to_downscale</span></code>
+Object with <code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code> flags for:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">t_air</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sw_radiation</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">relative_humidity</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">precipitation</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">wind</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lw_radiation</span></code></p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">start_date</span></code> and <code class="docutils literal notranslate"><span class="pre">end_date</span></code>
+Date range in <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code> format.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">aggregate_daily</span></code>
+<code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code>. Controls daily aggregation for downloaded ERA5-Land data.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">time_chunk</span></code>
+Chunk size used during downscaling output writing. The current code defaults
+to <code class="docutils literal notranslate"><span class="pre">24</span></code> when not explicitly provided.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dem_nodata</span></code>
+No-data value used for DEM masking.</p></li>
+</ul>
+</section>
+<section id="lapse-rate-and-parallel-settings">
+<h2>Lapse-rate and parallel settings<a class="headerlink" href="#lapse-rate-and-parallel-settings" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">custom_lapse_rates</span></code>
+Optional object with monthly values for:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">temperature.monthly</span></code> (12 values)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">precipitation.monthly</span></code> (12 values or <code class="docutils literal notranslate"><span class="pre">null</span></code>)</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jobs_parallel_downscale</span></code>
+Parallel job count for per-variable monthly downscaling.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jobs_parallel_download</span></code>
+Parallel job count for ERA5 monthly download and processing.</p></li>
+</ul>
+</section>
+<section id="optional-s3m-export">
+<h2>Optional S3M export<a class="headerlink" href="#optional-s3m-export" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">generate_s3m_input</span></code>
+If <code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code>, generate S3M-compatible files in
+<code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/outputs/s3m</span></code>.</p></li>
+</ul>
+</section>
+<section id="complete-example">
+<h2>Complete example<a class="headerlink" href="#complete-example" title="Link to this heading"></a></h2>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;working_directory&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;../DEMO_micromet_outputs&quot;</span><span class="p">,</span>
-
 <span class="w">  </span><span class="nt">&quot;dem_file&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
-
 <span class="w">  </span><span class="nt">&quot;download_dem_extent&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;lat_min&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6205000</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;lat_max&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6342500</span><span class="p">,</span>
@@ -155,28 +210,23 @@ obtain from <code class="docutils literal notranslate"><span class="pre">earthda
 <span class="w">  </span><span class="nt">&quot;download_dem_epsg&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">32719</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;download_dem_resolution&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;output_filename_dem&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;downloaded_dem.tif&quot;</span><span class="p">,</span>
-
 <span class="w">  </span><span class="nt">&quot;era_file&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
-
 <span class="w">  </span><span class="nt">&quot;earthdatahub_pat&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;YOUR_EDH_PAT_HERE&gt;&quot;</span><span class="p">,</span>
-
+<span class="w">  </span><span class="nt">&quot;earthdatahub_machine&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;earthdatahub.com&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;variables_to_downscale&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;t_air&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;sw_radiation&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;relative_humidity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;precipitation&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;wind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;lw_radiation&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span>
+<span class="w">    </span><span class="nt">&quot;relative_humidity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;precipitation&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;wind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;lw_radiation&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;y&quot;</span>
 <span class="w">  </span><span class="p">},</span>
-
 <span class="w">  </span><span class="nt">&quot;start_date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2017-04-01&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;end_date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2018-03-31&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;aggregate_daily&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span>
-
+<span class="w">  </span><span class="nt">&quot;end_date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2017-07-31&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;aggregate_daily&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;time_chunk&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">24</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;dem_nodata&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">-32768</span><span class="p">,</span>
-
-<span class="w">  </span><span class="nt">&quot;auto_calibrate_lapse_rate&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span>
-
+<span class="w">  </span><span class="nt">&quot;generate_s3m_input&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;custom_lapse_rates&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;monthly&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">8.1</span><span class="p">,</span><span class="w"> </span><span class="mf">7.9</span><span class="p">,</span><span class="w"> </span><span class="mf">7.78</span><span class="p">,</span><span class="w"> </span><span class="mf">7.76</span><span class="p">,</span><span class="w"> </span><span class="mf">7.9</span><span class="p">,</span><span class="w"> </span><span class="mf">8.0</span><span class="p">,</span><span class="w"> </span><span class="mf">8.2</span><span class="p">,</span><span class="w"> </span><span class="mf">8.4</span><span class="p">,</span><span class="w"> </span><span class="mf">8.6</span><span class="p">,</span><span class="w"> </span><span class="mf">8.7</span><span class="p">,</span><span class="w"> </span><span class="mf">8.4</span><span class="p">,</span><span class="w"> </span><span class="mf">8.32</span><span class="p">]</span>
@@ -185,205 +235,15 @@ obtain from <code class="docutils literal notranslate"><span class="pre">earthda
 <span class="w">      </span><span class="nt">&quot;monthly&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">},</span>
-
-<span class="w">  </span><span class="nt">&quot;jobs_parallel_downscale&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">-1</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;jobs_parallel_download&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">-1</span><span class="p">,</span>
-
-<span class="w">  </span><span class="nt">&quot;write_buffer_steps&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">24</span><span class="p">,</span>
-
-<span class="w">  </span><span class="nt">&quot;generate_s3m_input&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span>
+<span class="w">  </span><span class="nt">&quot;jobs_parallel_downscale&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;jobs_parallel_download&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span>
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>You can use this file as a template and adapt each block as described below.</p>
-</section>
-<section id="paths-working-directory-and-folder-structure">
-<h2>Paths, working directory and folder structure<a class="headerlink" href="#paths-working-directory-and-folder-structure" title="Link to this heading"></a></h2>
-<p><strong>working_directory</strong></p>
-<ul class="simple">
-<li><p>Path to the base folder for the run.</p></li>
-<li><p>At the beginning of the run,
-<code class="xref py py-func docutils literal notranslate"><span class="pre">create_full_micromet_folder_structure()</span></code> creates:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/inputs/climate</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/inputs/dem</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/outputs</span></code></p></li>
-</ul>
-</li>
-</ul>
-<p><strong>DEM configuration</strong></p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">dem_file</span></code></p>
-<ul>
-<li><p>Path to an existing DEM GeoTIFF.</p></li>
-<li><p>If not <code class="docutils literal notranslate"><span class="pre">null</span></code>, this DEM is used as the reference grid. :contentReference[oaicite:6]{index=6}</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">download_dem_extent</span></code>, <code class="docutils literal notranslate"><span class="pre">download_dem_epsg</span></code>, <code class="docutils literal notranslate"><span class="pre">download_dem_resolution</span></code>,
-<code class="docutils literal notranslate"><span class="pre">output_filename_dem</span></code></p>
-<ul>
-<li><p>Used only when <code class="docutils literal notranslate"><span class="pre">dem_file</span></code> is <code class="docutils literal notranslate"><span class="pre">null</span></code>.</p></li>
-<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">download_and_save_dem_from_config()</span></code> downloads Copernicus DEM
-(GLO-30) via EarthDataHub, crops it to the given extent, reprojects to
-<code class="docutils literal notranslate"><span class="pre">download_dem_epsg</span></code> and resamples to <code class="docutils literal notranslate"><span class="pre">download_dem_resolution</span></code> (in
-metres).</p></li>
-<li><p>The result is written to
-<code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/inputs/dem/&lt;output_filename_dem&gt;</span></code> and returned
-as <code class="docutils literal notranslate"><span class="pre">dem_file</span></code>.</p></li>
-</ul>
-</li>
-</ul>
-<p><strong>Important:</strong> the extent coordinates must be consistent with
-<code class="docutils literal notranslate"><span class="pre">download_dem_epsg</span></code>. If the extent is not aligned with the requested
-resolution, an informative error suggests corrected bounds. :contentReference[oaicite:8]{index=8}</p>
-</section>
-<section id="era5-land-configuration">
-<h2>ERA5-Land configuration<a class="headerlink" href="#era5-land-configuration" title="Link to this heading"></a></h2>
-<p>You can either:</p>
-<ol class="arabic simple">
-<li><p><strong>Use existing ERA5(-Land) NetCDF files</strong> (one per month) and point
-<code class="docutils literal notranslate"><span class="pre">era_file</span></code> to them (then the download step is skipped), or</p></li>
-<li><p><strong>Let MicroPyzzotMet download ERA5-Land directly</strong> from EarthDataHub.</p></li>
-</ol>
-<p>In the current workflow, <code class="docutils literal notranslate"><span class="pre">era_file</span></code> is typically left as <code class="docutils literal notranslate"><span class="pre">null</span></code> and the
-code:</p>
-<ul class="simple">
-<li><p>Calls <code class="xref py py-func docutils literal notranslate"><span class="pre">get_era5()</span></code> when <code class="docutils literal notranslate"><span class="pre">era_file</span></code> is <code class="docutils literal notranslate"><span class="pre">null</span></code>.</p></li>
-<li><p>Uses <code class="docutils literal notranslate"><span class="pre">earthdatahub_pat</span></code> to authenticate against the zarr store on
-EarthDataHub for both ERA5-Land and Copernicus DEM.</p></li>
-</ul>
-<p><strong>Fields:</strong></p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">era_file</span></code></p>
-<ul>
-<li><p>Currently used mainly as a flag. When <code class="docutils literal notranslate"><span class="pre">null</span></code>, ERA5-Land is downloaded
-into <code class="docutils literal notranslate"><span class="pre">&lt;working_directory&gt;/inputs/climate</span></code> as monthly NetCDF files
-<code class="docutils literal notranslate"><span class="pre">era_YYYY_MM.nc</span></code> (or <code class="docutils literal notranslate"><span class="pre">era_YYYY_MM_daily.nc</span></code> if daily aggregation is
-requested).</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">earthdatahub_pat</span></code></p>
-<ul>
-<li><p>Personal Access Token for EarthDataHub (string).</p></li>
-<li><p>Required <strong>both</strong> for DEM download (Copernicus GLO-30) and ERA5-Land
-access.</p></li>
-<li><p>Do <strong>not</strong> commit real tokens into a public repository. Use environment
-variables, a private config file, or a local, untracked JSON.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">start_date</span></code>, <code class="docutils literal notranslate"><span class="pre">end_date</span></code></p>
-<ul>
-<li><p>Time range of ERA5-Land data (strings in <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span></code> format).</p></li>
-<li><p>Passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">get_era5()</span></code> and used to build the list of monthly
-NetCDF files.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">aggregate_daily</span></code></p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code> flag.</p></li>
-<li><p>When <code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code>, the ERA5 stream is aggregated to daily values inside
-<code class="xref py py-func docutils literal notranslate"><span class="pre">process_month()</span></code> (means for most variables, special handling for
-precipitation and radiation). :contentReference[oaicite:12]{index=12}</p></li>
-<li><p>Parsed via <code class="xref py py-func docutils literal notranslate"><span class="pre">parse_yes_no_flag()</span></code>. :contentReference[oaicite:13]{index=13}</p></li>
-</ul>
-</li>
-</ul>
-</section>
-<section id="variables-to-downscale">
-<h2>Variables to downscale<a class="headerlink" href="#variables-to-downscale" title="Link to this heading"></a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">variables_to_downscale</span></code> block controls which downscaling routines
-are executed. Each key is a <code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code> flag and is parsed by
-<code class="xref py py-func docutils literal notranslate"><span class="pre">parse_yes_no_flag()</span></code>.</p>
-<p>Available keys:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;t_air&quot;</span></code>: 2 m air temperature (<code class="docutils literal notranslate"><span class="pre">t2m</span></code>) → stored in
-<code class="docutils literal notranslate"><span class="pre">outputs/Temperature</span></code>. Uses monthly lapse rates or on-the-fly
-calibration and buffered NetCDF writing.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;sw_radiation&quot;</span></code>: shortwave radiation (<code class="docutils literal notranslate"><span class="pre">ssrd</span></code>), topographically
-corrected using slope/aspect and solar geometry; output goes to
-<code class="docutils literal notranslate"><span class="pre">outputs/SW</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;relative_humidity&quot;</span></code>: relative humidity, output <code class="docutils literal notranslate"><span class="pre">outputs/RH</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;precipitation&quot;</span></code>: precipitation (from <code class="docutils literal notranslate"><span class="pre">tp</span></code>, after conversion and
-differencing), output <code class="docutils literal notranslate"><span class="pre">outputs/P</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;wind&quot;</span></code>: wind speed/direction (<code class="docutils literal notranslate"><span class="pre">u10</span></code>, <code class="docutils literal notranslate"><span class="pre">v10</span></code>) with topographic
-adjustment and curvature, output <code class="docutils literal notranslate"><span class="pre">outputs/Wind</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;lw_radiation&quot;</span></code>: longwave radiation (from <code class="docutils literal notranslate"><span class="pre">strd</span></code> and downscaled
-temperature/humidity), output <code class="docutils literal notranslate"><span class="pre">outputs/LW</span></code>.</p></li>
-</ul>
-</section>
-<section id="dem-and-lapse-rate-options">
-<h2>DEM and lapse-rate options<a class="headerlink" href="#dem-and-lapse-rate-options" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">dem_nodata</span></code></p>
-<ul>
-<li><p>Nodata value used when reading the DEM and in many downscaling steps
-to mask invalid cells.</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">auto_calibrate_lapse_rate</span></code></p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code> flag.</p></li>
-<li><p>When <code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code>, the temperature lapse rate is estimated for each
-timestep by linear regression of ERA5 <code class="docutils literal notranslate"><span class="pre">t2m</span></code> vs geopotential-derived
-height (<code class="docutils literal notranslate"><span class="pre">z</span></code>).</p></li>
-<li><p>When <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code>, a fixed monthly lapse rate is used (either the default
-MicroMet rates or custom ones).</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">custom_lapse_rates</span></code></p>
-<ul>
-<li><p>Optional object with keys:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;temperature&quot;</span> <span class="pre">:</span> <span class="pre">{</span> <span class="pre">&quot;monthly&quot;:</span> <span class="pre">[12</span> <span class="pre">values]</span> <span class="pre">}</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;precipitation&quot;</span> <span class="pre">:</span> <span class="pre">{</span> <span class="pre">&quot;monthly&quot;:</span> <span class="pre">[12</span> <span class="pre">values]</span> <span class="pre">or</span> <span class="pre">null</span> <span class="pre">}</span></code></p></li>
-</ul>
-</li>
-<li><p>The monthly arrays (K/km for temperature, gamma for precipitation)
-override the internal MicroMet parameters when <code class="docutils literal notranslate"><span class="pre">auto_calibrate_lapse_rate</span></code>
-is <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code>.</p></li>
-</ul>
-</li>
-</ul>
-</section>
-<section id="parallelisation-and-performance">
-<h2>Parallelisation and performance<a class="headerlink" href="#parallelisation-and-performance" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">jobs_parallel_downscale</span></code></p>
-<ul>
-<li><p>Number of parallel jobs used by joblib when downscaling each variable
-over all monthly NetCDF files. <code class="docutils literal notranslate"><span class="pre">-1</span></code> means “use all available cores”. :contentReference[oaicite:23]{index=23}</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">jobs_parallel_download</span></code></p>
-<ul>
-<li><p>Number of parallel jobs when post-processing ERA5 month by month in
-<code class="xref py py-func docutils literal notranslate"><span class="pre">get_era5()</span></code>. Again, <code class="docutils literal notranslate"><span class="pre">-1</span></code> uses all cores. :contentReference[oaicite:24]{index=24}</p></li>
-</ul>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">write_buffer_steps</span></code> (optional, default: 24)</p>
-<ul>
-<li><p>Controls how many time steps are buffered in memory before being
-flushed to NetCDF when downscaling temperature.</p></li>
-<li><p>Smaller values → less memory, more frequent writes.</p></li>
-<li><p>Larger values → more memory, fewer writes, potentially faster I/O.</p></li>
-</ul>
-</li>
-</ul>
-</section>
-<section id="optional-s3m-output">
-<h2>Optional S3M output<a class="headerlink" href="#optional-s3m-output" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">generate_s3m_input</span></code> (optional, default: <code class="docutils literal notranslate"><span class="pre">&quot;n&quot;</span></code>)</p>
-<ul>
-<li><p>When set to <code class="docutils literal notranslate"><span class="pre">&quot;y&quot;</span></code>, after all downscaling is complete the code calls
-<code class="xref py py-func docutils literal notranslate"><span class="pre">convert_micromet_to_s3m_inputs()</span></code> to create one compressed
-NetCDF (<code class="docutils literal notranslate"><span class="pre">.nc.gz</span></code>) per timestep in <code class="docutils literal notranslate"><span class="pre">outputs/s3m</span></code> with the S3M
-variable naming convention (<code class="docutils literal notranslate"><span class="pre">Rain</span></code>, <code class="docutils literal notranslate"><span class="pre">AirTemperature</span></code>,
-<code class="docutils literal notranslate"><span class="pre">IncRadiation</span></code>, <code class="docutils literal notranslate"><span class="pre">RelHumidity</span></code>, <code class="docutils literal notranslate"><span class="pre">terrain</span></code>, <code class="docutils literal notranslate"><span class="pre">longitude</span></code>,
-<code class="docutils literal notranslate"><span class="pre">latitude</span></code>).</p></li>
-</ul>
-</li>
-</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Never commit a real EarthDataHub PAT into version control.</p>
+</div>
 </section>
 </section>
 

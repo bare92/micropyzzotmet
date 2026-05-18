@@ -87,7 +87,7 @@ A typical structure is::
 4. Run the downscaling workflow
 -------------------------------
 
-Run from the repository root::
+Run the workflow::
 
     micropyzzotmet option_files/micro_config_DEMO_MAIPO.json
 
