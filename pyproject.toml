@@ -13,7 +13,7 @@ authors = [
   { name = "Riccardo Barella" }
 ]
 dependencies = [
-  "numpy==2.2.5",
+  "numpy>=2.3.0",
   "pandas==2.3.3",
   "xarray==2025.4.0",
   "rasterio==1.4.4",
