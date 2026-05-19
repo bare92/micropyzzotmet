@@ -1,15 +1,15 @@
 {
-  "working_directory": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/ALPS_micromet_4326_2020_flip",
-  "dem_file": "/mnt/CEPH_PROJECTS/SNOWCOP/Riccardo/CIMA/A_DROP/static_layers_s3m_alps/model_extent_DEM_500m_wgs84.tif",
+  "working_directory": "/home/riccardo/Documents/07_Archive/processing_output/micropyzzot_out",
+  "dem_file": "/home/riccardo/Documents/09_tmp_data_check/FULL_DOMAIN_Terrain.tif",
     "download_dem_extent": {
-  "lat_min": null,
-  "lat_max": null,
-  "lon_min": null,
-  "lon_max": null
+  "lat_min": 17.94,
+  "lat_max": 49.18,
+  "lon_min": 3.6,
+  "lon_max": 42.66
   },
-  "download_dem_epsg": null,  
-  "download_dem_resolution": null,  
-  "output_filename_dem": null,
+  "download_dem_epsg": 4326,  
+  "download_dem_resolution": 0.0045,  
+  "output_filename_dem": "alps_dem_500m.tif",
   "era_file": null,
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
   "variables_to_downscale": {
@@ -20,8 +20,8 @@
     "wind": "n",
     "lw_radiation": "n"
   },
-  "start_date": "2020-01-01",
-  "end_date": "2025-06-30",
+  "start_date": "1992-04-01",
+  "end_date": "1992-04-01",
   "aggregate_daily": "y",
   "time_chunk": 24,
   "dem_nodata": -9999,

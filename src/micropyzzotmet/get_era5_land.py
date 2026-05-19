@@ -20,10 +20,26 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import os
+import time
 import rasterio
 from rasterio.warp import transform_bounds
 from joblib import Parallel, delayed
 from .utils import build_earthdatahub_url
+
+
+def _is_transient_http_error(exc):
+    """Return True for temporary network/payload failures worth retrying."""
+    transient_markers = [
+        "ClientPayloadError",
+        "ContentLengthError",
+        "Connection reset by peer",
+        "RemoteDisconnected",
+        "ServerDisconnectedError",
+        "ReadTimeout",
+        "TimeoutError",
+    ]
+    text = f"{type(exc).__name__}: {exc}"
+    return any(marker in text for marker in transient_markers)
 
 
 def is_valid_netcdf(file_path):
@@ -126,7 +142,7 @@ def aggregate_to_daily(ds):
     return xr.Dataset(agg_dict)
 
 
-def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
+def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False, max_retries=6, retry_wait_s=2):
     """
     Extract and post-process one month of ERA5-Land data and save it to NetCDF.
 
@@ -164,64 +180,81 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False):
         print(f"Skipping {start.strftime('%Y-%m')} - already exists.")
         return
 
-    ds_month = ds.sel(valid_time=slice(start, end))
-    ds_surface = ds_month[surface_vars]
+    for attempt in range(1, max_retries + 1):
+        try:
+            ds_month = ds.sel(valid_time=slice(start, end))
+            ds_surface = ds_month[surface_vars]
 
-    # Convert longitude to [-180, 180]
-    longitudes = ds_surface['longitude'].values
-    longitudes = np.where(longitudes > 180, longitudes - 360, longitudes)
-    ds_surface = ds_surface.assign_coords(longitude=("longitude", longitudes))
-    ds_surface = ds_surface.sortby('longitude')
+            # Convert longitude to [-180, 180]
+            longitudes = ds_surface['longitude'].values
+            longitudes = np.where(longitudes > 180, longitudes - 360, longitudes)
+            ds_surface = ds_surface.assign_coords(longitude=("longitude", longitudes))
+            ds_surface = ds_surface.sortby('longitude')
 
-    # Handle precipitation
-    if 'tp' in ds_surface:
-        tp_mm = ds_surface['tp'] * 1000
-        if not aggregate_daily:
-            tp_mm_hourly = tp_mm.groupby('valid_time.dayofyear').map(
-                lambda group: xr.concat(
-                    [group.isel(valid_time=0), group.diff('valid_time')],
-                    dim='valid_time'
-                )
-            )
-            tp_mm_hourly.attrs['units'] = 'mm'
-            tp_mm_hourly.attrs['description'] = 'Converted from m to mm; Converted to mm/hour from daily cumulative'
-            ds_surface['tp'] = tp_mm_hourly
-        else:
-            tp_mm.attrs['units'] = 'mm'
-            tp_mm.attrs['description'] = 'Converted from m to mm'
-            ds_surface['tp'] = tp_mm
-
-    # Handle radiation (shortwave and longwave)
-    for var in ['ssrd', 'strd']:
-        if var in ds_surface:
-            rad_j = ds_surface[var]
-            if not aggregate_daily:
-                rad_hourly = rad_j.groupby('valid_time.dayofyear').map(
-                    lambda group: xr.concat(
-                        [group.isel(valid_time=0), group.diff('valid_time')],
-                        dim='valid_time'
+            # Handle precipitation
+            if 'tp' in ds_surface:
+                tp_mm = ds_surface['tp'] * 1000
+                if not aggregate_daily:
+                    tp_mm_hourly = tp_mm.groupby('valid_time.dayofyear').map(
+                        lambda group: xr.concat(
+                            [group.isel(valid_time=0), group.diff('valid_time')],
+                            dim='valid_time'
+                        )
                     )
-                )
-                rad_wm2 = rad_hourly / 3600
-                rad_wm2.attrs['units'] = 'W m-2'
-                rad_wm2.attrs['description'] = 'Converted from J m-2 to W m-2 using hourly cumulative diff'
-                ds_surface[var] = rad_wm2
-            else:
-                rad_daily = rad_j.resample(valid_time="1D").last() / 86400
-                rad_daily.attrs['units'] = 'W m-2'
-                rad_daily.attrs['description'] = 'Daily average from cumulative J m-2 (last of day / 86400)'
-                ds_surface[var] = rad_daily
+                    tp_mm_hourly.attrs['units'] = 'mm'
+                    tp_mm_hourly.attrs['description'] = 'Converted from m to mm; Converted to mm/hour from daily cumulative'
+                    ds_surface['tp'] = tp_mm_hourly
+                else:
+                    tp_mm.attrs['units'] = 'mm'
+                    tp_mm.attrs['description'] = 'Converted from m to mm'
+                    ds_surface['tp'] = tp_mm
 
-    if aggregate_daily:
-        ds_surface = aggregate_to_daily(ds_surface)
+            # Handle radiation (shortwave and longwave)
+            for var in ['ssrd', 'strd']:
+                if var in ds_surface:
+                    rad_j = ds_surface[var]
+                    if not aggregate_daily:
+                        rad_hourly = rad_j.groupby('valid_time.dayofyear').map(
+                            lambda group: xr.concat(
+                                [group.isel(valid_time=0), group.diff('valid_time')],
+                                dim='valid_time'
+                            )
+                        )
+                        rad_wm2 = rad_hourly / 3600
+                        rad_wm2.attrs['units'] = 'W m-2'
+                        rad_wm2.attrs['description'] = 'Converted from J m-2 to W m-2 using hourly cumulative diff'
+                        ds_surface[var] = rad_wm2
+                    else:
+                        rad_daily = rad_j.resample(valid_time="1D").last() / 86400
+                        rad_daily.attrs['units'] = 'W m-2'
+                        rad_daily.attrs['description'] = 'Daily average from cumulative J m-2 (last of day / 86400)'
+                        ds_surface[var] = rad_daily
 
-    ds_surface.latitude.attrs.update(units='degrees_north', standard_name='latitude', axis='Y')
-    ds_surface.longitude.attrs.update(units='degrees_east', standard_name='longitude', axis='X')
+            if aggregate_daily:
+                ds_surface = aggregate_to_daily(ds_surface)
 
-    # NOTE: requires rioxarray; if it's missing, move this inside a try/except or mock it for docs
-    ds_surface = ds_surface.rio.write_crs("EPSG:4326", inplace=True)
+            ds_surface.latitude.attrs.update(units='degrees_north', standard_name='latitude', axis='Y')
+            ds_surface.longitude.attrs.update(units='degrees_east', standard_name='longitude', axis='X')
 
-    ds_surface.to_netcdf(surface_file)
+            # Keep remote I/O inside retry boundary and avoid lazy fetch during write.
+            ds_surface = ds_surface.load()
+
+            # NOTE: requires rioxarray; if it's missing, move this inside a try/except or mock it for docs
+            ds_surface = ds_surface.rio.write_crs("EPSG:4326", inplace=True)
+
+            tmp_file = f"{surface_file}.tmp"
+            ds_surface.to_netcdf(tmp_file)
+            os.replace(tmp_file, surface_file)
+            return
+        except Exception as exc:
+            if attempt >= max_retries or not _is_transient_http_error(exc):
+                raise
+            wait_s = retry_wait_s * attempt
+            print(
+                f"Transient ERA download/read error for {start.strftime('%Y-%m')} "
+                f"(attempt {attempt}/{max_retries}). Retrying in {wait_s}s..."
+            )
+            time.sleep(wait_s)
 
 
 def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT=None, jobs_download=1, aggregate_daily=False, machine="earthdatahub.com"):
@@ -278,7 +311,14 @@ def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT=None, job
 
     time_ranges = pd.date_range(start=start_date, end=end_date, freq='MS')
 
-    Parallel(n_jobs=-1)(
+    if jobs_download is None:
+        n_jobs = 1
+    elif jobs_download < 0:
+        n_jobs = min(os.cpu_count() or 1, 2)
+    else:
+        n_jobs = max(1, min(jobs_download, 2))
+
+    Parallel(n_jobs=n_jobs)(
         delayed(process_month)(
             ds, start, output_dir, variables, aggregate_daily=aggregate_daily
         )

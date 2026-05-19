@@ -75,6 +75,10 @@ These applications are not yet published, but they demonstrate concrete and real
 
 ![Examples of terrain-aware downscaled outputs generated with `MicroPyzzotMet`, illustrating the added spatial detail produced over complex mountain topography.](downscaling_examples.png){#fig:examples}
 
+An example of downscaled Alpine air temperature for 1 April 1992 is shown in @fig:alps-temp-19920401.
+
+![In a) is shown the original ERA-5 Land data. In b) an example of downscaled air temperature over the Alpine domain on 1 April 1992, produced with `MicroPyzzotMet` at 500 m resolution.](alps_T_ex_1492.png){#fig:alps-temp-19920401 width=70%}
+
 The repository also includes a complete example workflow for the Maipo basin in Chile, showing end-to-end acquisition of terrain and ERA5-Land inputs, configuration-driven processing, and production of gridded outputs. Together, the ongoing Andes and Alpine applications and the reproducible example provide specific evidence of near-term scholarly significance for cryospheric and hydrological research.
 
 # AI usage disclosure
