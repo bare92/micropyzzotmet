@@ -29,6 +29,7 @@ import glob
 from .get_era5_land import get_era5
 from .utils import *
 from .downscaling_variables import *
+from .additional_outputs import generate_monthly_potential_evapotranspiration
 import time
 from joblib import Parallel, delayed
 
@@ -66,7 +67,42 @@ def run_temperature(curr_climate_file, dem_path, working_directory,
         dem_path, curr_climate_file, output_folder,
         custom_lapse_rate=custom_lapse_rates.get("Temperature"),
         dem_nodata=dem_nodata,
-        time_chunk = time_chunk
+        time_chunk=time_chunk,
+        source_temperature_var="t2m",
+        output_temperature_var="t2m",
+        output_file_prefix="temperature_downscaled"
+    )
+
+
+def run_temperature_min(curr_climate_file, dem_path, working_directory,
+                        variables_to_downscale, custom_lapse_rates,
+                        dem_nodata, time_chunk):
+    """Run daily minimum air-temperature downscaling for a single climate file."""
+    output_folder = os.path.join(working_directory, 'outputs', 'Temperature_min')
+    downscale_Temperature(
+        dem_path, curr_climate_file, output_folder,
+        custom_lapse_rate=custom_lapse_rates.get("Temperature"),
+        dem_nodata=dem_nodata,
+        time_chunk=time_chunk,
+        source_temperature_var="t_min",
+        output_temperature_var="t_min",
+        output_file_prefix="temperature_min_downscaled"
+    )
+
+
+def run_temperature_max(curr_climate_file, dem_path, working_directory,
+                        variables_to_downscale, custom_lapse_rates,
+                        dem_nodata, time_chunk):
+    """Run daily maximum air-temperature downscaling for a single climate file."""
+    output_folder = os.path.join(working_directory, 'outputs', 'Temperature_max')
+    downscale_Temperature(
+        dem_path, curr_climate_file, output_folder,
+        custom_lapse_rate=custom_lapse_rates.get("Temperature"),
+        dem_nodata=dem_nodata,
+        time_chunk=time_chunk,
+        source_temperature_var="t_max",
+        output_temperature_var="t_max",
+        output_file_prefix="temperature_max_downscaled"
     )
 
     
@@ -337,6 +373,18 @@ def run_micropezzomet(config_path):
             delayed(run_temperature)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
 
+    # Air Temperature (daily minimum)
+    if parse_yes_no_flag(variables_to_downscale.get("t_air_min", "n"), "t_air_min"):
+        Parallel(n_jobs=jobs_downscaling)(
+            delayed(run_temperature_min)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        )
+
+    # Air Temperature (daily maximum)
+    if parse_yes_no_flag(variables_to_downscale.get("t_air_max", "n"), "t_air_max"):
+        Parallel(n_jobs=jobs_downscaling)(
+            delayed(run_temperature_max)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        )
+
     # Shortwave Radiation
     if parse_yes_no_flag(variables_to_downscale.get("sw_radiation", "n"), "sw_radiation"):
         Parallel(n_jobs=jobs_downscaling)(
@@ -367,6 +415,20 @@ def run_micropezzomet(config_path):
             delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
         
+    # Optionally generate additional inputs
+    generate_pet = parse_yes_no_flag(
+        config.get("generate_potential_evapotranspiration", "n"),
+        "generate_potential_evapotranspiration"
+    )
+    if generate_pet:
+        pet_cfg = config.get("potential_evapotranspiration", {}) or {}
+        pet_method = pet_cfg.get("method", "HS")
+        print(f"\nCreating monthly PET files in outputs/ET_{str(pet_method).upper()} ...")
+        generate_monthly_potential_evapotranspiration(
+            working_directory=working_directory,
+            method=pet_method
+        )
+
     # Optionally generate S3M-compatible inputs
     generate_s3m = parse_yes_no_flag(config.get("generate_s3m_input", "n"), "generate_s3m_input")
     if generate_s3m:
