@@ -1,0 +1,48 @@
+{
+  "working_directory": "../DEMO_micromet_outputs_check",
+  "dem_file": null,
+    "download_dem_extent": {
+    "lat_min": 2411452.2843490215018392,
+    "lat_max": 2667452.2843490215018392,
+    "lon_min": 4341352.5343716070055962,
+    "lon_max": 4626352.5343716070055962
+    },
+  "download_dem_epsg": 3035,  
+  "download_dem_resolution": 50,  
+  "output_filename_dem": "downloaded_dem.tif",
+  "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
+  "era_file": null,
+  "variables_to_downscale": {
+    "t_air": "y",
+    "t_air_min": "y",
+    "t_air_max": "y",
+    "sw_radiation": "n",
+    "relative_humidity": "n",
+    "precipitation": "n",
+    "wind": "n",
+    "lw_radiation": "n"
+  },
+  "start_date": "2017-04-01",
+  "end_date": "2017-07-31",
+  "aggregate_daily": "y",
+  "time_chunk": 24,
+  "dem_nodata": -32768,
+  "generate_s3m_input": "n",
+  "generate_potential_evapotranspiration": "y",
+  "potential_evapotranspiration": {
+    "method": "HS",
+    "available_methods": ["HS"]
+  },
+  "custom_lapse_rates": {
+    "temperature": {
+      "monthly": [8.1, 7.9, 7.78, 7.76, 7.9, 8, 8.2, 8.4, 8.6, 8.7, 8.4, 8.32]
+    },
+    "precipitation": {
+      "monthly": null
+    }
+  },
+  "jobs_parallel_downscale": 8,
+  "jobs_parallel_download": 8
+}
+
+
