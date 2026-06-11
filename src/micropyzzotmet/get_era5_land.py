@@ -109,10 +109,12 @@ def aggregate_to_daily(ds):
     """
     Aggregate an ERA5-Land hourly dataset to daily frequency.
 
-    Rules applied:
-    - Temperature / winds / pressure variables are averaged over the day.
-    - Precipitation ('tp') is kept as the last value of the day (cumulative convention).
-    - Unknown variables default to daily mean.
+        Rules applied:
+        - Temperature / winds / pressure variables are averaged over the day.
+        - If hourly air temperature ('t2m') exists, daily min/max are stored as
+            't_min' and 't_max'.
+        - Precipitation ('tp') is kept as the last value of the day (cumulative convention).
+        - Unknown variables default to daily mean.
 
     Parameters
     ----------
@@ -139,7 +141,22 @@ def aggregate_to_daily(ds):
         else:
             agg_dict[var] = ds[var].resample(valid_time="1D").mean()
 
-    return xr.Dataset(agg_dict)
+    daily_ds = xr.Dataset(agg_dict)
+
+    if 't2m' in ds:
+        t_min = ds['t2m'].resample(valid_time="1D").min()
+        t_max = ds['t2m'].resample(valid_time="1D").max()
+
+        # Keep temperature metadata consistent for derived daily extrema.
+        t_min.attrs = dict(ds['t2m'].attrs)
+        t_min.attrs['description'] = "Daily minimum of 2m air temperature"
+        t_max.attrs = dict(ds['t2m'].attrs)
+        t_max.attrs['description'] = "Daily maximum of 2m air temperature"
+
+        daily_ds['t_min'] = t_min
+        daily_ds['t_max'] = t_max
+
+    return daily_ds
 
 
 def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False, max_retries=6, retry_wait_s=2):
