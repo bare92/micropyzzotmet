@@ -14,18 +14,20 @@
   "era_file": null,
   "variables_to_downscale": {
     "t_air": "y",
-    "sw_radiation": "y",
-    "relative_humidity": "y",
-    "precipitation": "y",
-    "wind": "y",
-    "lw_radiation": "y"
+    "t_air_min": "y",
+    "t_air_max": "y",
+    "sw_radiation": "n",
+    "relative_humidity": "n",
+    "precipitation": "n",
+    "wind": "n",
+    "lw_radiation": "n"
   },
   "start_date": "2017-04-01",
   "end_date": "2017-07-31",
   "aggregate_daily": "y",
   "time_chunk": 24,
   "dem_nodata": -32768,
-  "generate_s3m_input": "y",
+  "generate_s3m_input": "n",
   "custom_lapse_rates": {
     "temperature": {
       "monthly": [8.1, 7.9, 7.78, 7.76, 7.9, 8, 8.2, 8.4, 8.6, 8.7, 8.4, 8.32]

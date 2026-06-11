@@ -54,6 +54,8 @@ A typical structure is::
       "earthdatahub_pat": "<YOUR_EDH_PAT_HERE>",
       "variables_to_downscale": {
         "t_air": "y",
+        "t_air_min": "n",
+        "t_air_max": "n",
         "sw_radiation": "y",
         "relative_humidity": "y",
         "precipitation": "y",

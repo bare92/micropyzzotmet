@@ -66,7 +66,42 @@ def run_temperature(curr_climate_file, dem_path, working_directory,
         dem_path, curr_climate_file, output_folder,
         custom_lapse_rate=custom_lapse_rates.get("Temperature"),
         dem_nodata=dem_nodata,
-        time_chunk = time_chunk
+        time_chunk=time_chunk,
+        source_temperature_var="t2m",
+        output_temperature_var="t2m",
+        output_file_prefix="temperature_downscaled"
+    )
+
+
+def run_temperature_min(curr_climate_file, dem_path, working_directory,
+                        variables_to_downscale, custom_lapse_rates,
+                        dem_nodata, time_chunk):
+    """Run daily minimum air-temperature downscaling for a single climate file."""
+    output_folder = os.path.join(working_directory, 'outputs', 'Temperature_min')
+    downscale_Temperature(
+        dem_path, curr_climate_file, output_folder,
+        custom_lapse_rate=custom_lapse_rates.get("Temperature"),
+        dem_nodata=dem_nodata,
+        time_chunk=time_chunk,
+        source_temperature_var="t_min",
+        output_temperature_var="t_min",
+        output_file_prefix="temperature_min_downscaled"
+    )
+
+
+def run_temperature_max(curr_climate_file, dem_path, working_directory,
+                        variables_to_downscale, custom_lapse_rates,
+                        dem_nodata, time_chunk):
+    """Run daily maximum air-temperature downscaling for a single climate file."""
+    output_folder = os.path.join(working_directory, 'outputs', 'Temperature_max')
+    downscale_Temperature(
+        dem_path, curr_climate_file, output_folder,
+        custom_lapse_rate=custom_lapse_rates.get("Temperature"),
+        dem_nodata=dem_nodata,
+        time_chunk=time_chunk,
+        source_temperature_var="t_max",
+        output_temperature_var="t_max",
+        output_file_prefix="temperature_max_downscaled"
     )
 
     
@@ -335,6 +370,18 @@ def run_micropezzomet(config_path):
     if parse_yes_no_flag(variables_to_downscale.get("t_air", "n"), "t_air"):
         Parallel(n_jobs=jobs_downscaling)(
             delayed(run_temperature)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        )
+
+    # Air Temperature (daily minimum)
+    if parse_yes_no_flag(variables_to_downscale.get("t_air_min", "n"), "t_air_min"):
+        Parallel(n_jobs=jobs_downscaling)(
+            delayed(run_temperature_min)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        )
+
+    # Air Temperature (daily maximum)
+    if parse_yes_no_flag(variables_to_downscale.get("t_air_max", "n"), "t_air_max"):
+        Parallel(n_jobs=jobs_downscaling)(
+            delayed(run_temperature_max)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
 
     # Shortwave Radiation

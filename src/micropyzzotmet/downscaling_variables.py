@@ -45,16 +45,19 @@ def downscale_Temperature(
     custom_lapse_rate=None,
     calibrate_lapse_rate=False,
     dem_nodata=None,
-    time_chunk=24
+    time_chunk=24,
+    source_temperature_var="t2m",
+    output_temperature_var="t2m",
+    output_file_prefix="temperature_downscaled"
 ):
     
     """
-    Downscale ERA5/ERA5-Land 2 m air temperature (``t2m``) to a high-resolution DEM grid.
+    Downscale an ERA5/ERA5-Land near-surface temperature field to a high-resolution DEM grid.
     
      Workflow
 
      1. Opens the DEM raster and uses its grid/CRS/transform as target.
-     2. Opens the climate NetCDF and reads ``t2m`` on the ERA grid.
+    2. Opens the climate NetCDF and reads a selected temperature field on the ERA grid.
      3. Reads packaged geopotential data (variable ``z``) to estimate ERA-grid
          elevations (meters).
      4. Applies a vertical lapse-rate correction using fixed monthly lapse rates,
@@ -64,7 +67,7 @@ def downscale_Temperature(
      6. Applies the lapse-rate correction using DEM elevations.
     
     Output is written as a **monthly** NetCDF file named:
-    ``temperature_downscaled_YYYY_MM.nc`` in ``output_folder_T``.
+    ``<output_file_prefix>_YYYY_MM.nc`` in ``output_folder_T``.
     
     Notes
     -----
@@ -79,7 +82,7 @@ def downscale_Temperature(
     dem_path : str or pathlib.Path
         Path to DEM GeoTIFF.
     curr_climate_file : str or pathlib.Path
-        Path to monthly climate NetCDF containing ``t2m``.
+        Path to monthly climate NetCDF containing the selected source temperature variable.
     output_folder_T : str or pathlib.Path
         Output directory where the monthly NetCDF will be saved.
     custom_lapse_rate : array-like of length 12, optional
@@ -92,6 +95,12 @@ def downscale_Temperature(
         Value representing nodata in the DEM. If None, NaNs are used.
     write_buffer_steps : int, default 24
         Number of timesteps to buffer before writing to disk. Use 24 for hourly data.
+    source_temperature_var : str, default "t2m"
+        Name of the temperature variable to read from the climate NetCDF.
+    output_temperature_var : str, default "t2m"
+        Name of the downscaled variable written to the output NetCDF.
+    output_file_prefix : str, default "temperature_downscaled"
+        Prefix used in monthly output filenames.
     
     Returns
     -------
@@ -127,12 +136,12 @@ def downscale_Temperature(
 
     # input: chunk by time so xarray doesn't load everything
     ds = xr.open_dataset(curr_climate_file, chunks={"valid_time": 1, "time": 1})
-    assert "t2m" in ds, "t2m variable not found in NetCDF"
+    assert source_temperature_var in ds, f"{source_temperature_var} variable not found in NetCDF"
 
     lon = ds.longitude.values
     lat = ds.latitude.values
     time = ds.valid_time.values if "valid_time" in ds else ds.time.values
-    temp = ds["t2m"]
+    temp = ds[source_temperature_var]
 
     lon2d, lat2d = np.meshgrid(lon, lat)
 
@@ -147,7 +156,7 @@ def downscale_Temperature(
         raise ValueError("calibrate_lapse_rate=True not implemented in this function (same as your original).")
 
     month_tag = pd.to_datetime(time[0]).strftime("%Y_%m")
-    out_nc = os.path.join(output_folder_T, f"temperature_downscaled_{month_tag}.nc")
+    out_nc = os.path.join(output_folder_T, f"{output_file_prefix}_{month_tag}.nc")
     if os.path.exists(out_nc):
         print(f"Output already exists: {out_nc}. Skipping downscaling.")
         return
@@ -205,14 +214,14 @@ def downscale_Temperature(
     tv.calendar = "standard"
     
     # Data variable
-    t2m_var = root.createVariable(
-        "t2m", "i2", ("time", "y", "x"),
+    temperature_var = root.createVariable(
+        output_temperature_var, "i2", ("time", "y", "x"),
         fill_value=np.int16(out_nodata),
         chunksizes=(min(time_chunk, ntime), min(256, height), min(256, width))
     )
-    t2m_var.units = "K"
-    t2m_var.description = "Downscaled air temperature"
-    t2m_var.missing_value = np.int16(out_nodata)
+    temperature_var.units = "K"
+    temperature_var.description = f"Downscaled {source_temperature_var}"
+    temperature_var.missing_value = np.int16(out_nodata)
     
     # ---- CF grid mapping (THIS is what QGIS needs) ----
     spatial_ref = root.createVariable("spatial_ref", "i4")
@@ -231,7 +240,7 @@ def downscale_Temperature(
     gt = f"{dem_transform.c} {dem_transform.a} {dem_transform.b} {dem_transform.f} {dem_transform.d} {dem_transform.e}"
     spatial_ref.setncattr("GeoTransform", gt)
     
-    t2m_var.setncattr("grid_mapping", "spatial_ref")
+    temperature_var.setncattr("grid_mapping", "spatial_ref")
     
     root.setncattr("Conventions", "CF-1.8")
 
@@ -281,7 +290,7 @@ def downscale_Temperature(
 
         # write times + data for this block at the correct indices
         tv[start:end] = nc.date2num([d.to_pydatetime() for d in chunk_times], units=tv.units, calendar=tv.calendar)
-        t2m_var[start:end, :, :] = chunk_data
+        temperature_var[start:end, :, :] = chunk_data
 
         del chunk_data, chunk_times
         start = end

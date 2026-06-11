@@ -56,6 +56,8 @@ Variable and time controls
   Object with ``"y"`` or ``"n"`` flags for:
 
   - ``t_air``
+  - ``t_air_min``
+  - ``t_air_max``
   - ``sw_radiation``
   - ``relative_humidity``
   - ``precipitation``
@@ -119,6 +121,8 @@ Complete example
       "earthdatahub_machine": "earthdatahub.com",
       "variables_to_downscale": {
         "t_air": "y",
+        "t_air_min": "n",
+        "t_air_max": "n",
         "sw_radiation": "y",
         "relative_humidity": "y",
         "precipitation": "y",
