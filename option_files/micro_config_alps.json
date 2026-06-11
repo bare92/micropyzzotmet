@@ -28,6 +28,11 @@
   "time_chunk": 24,
   "dem_nodata": -9999,
   "generate_s3m_input": "y",
+  "generate_potential_evapotranspiration": "n",
+  "potential_evapotranspiration": {
+    "method": "HS",
+    "available_methods": ["HS"]
+  },
   "custom_lapse_rates": {
     "temperature": {
       "monthly": null

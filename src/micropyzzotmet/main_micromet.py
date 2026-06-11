@@ -29,6 +29,7 @@ import glob
 from .get_era5_land import get_era5
 from .utils import *
 from .downscaling_variables import *
+from .additional_outputs import generate_monthly_potential_evapotranspiration
 import time
 from joblib import Parallel, delayed
 
@@ -414,6 +415,20 @@ def run_micropezzomet(config_path):
             delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
         )
         
+    # Optionally generate additional inputs
+    generate_pet = parse_yes_no_flag(
+        config.get("generate_potential_evapotranspiration", "n"),
+        "generate_potential_evapotranspiration"
+    )
+    if generate_pet:
+        pet_cfg = config.get("potential_evapotranspiration", {}) or {}
+        pet_method = pet_cfg.get("method", "HS")
+        print(f"\nCreating monthly PET files in outputs/ET_{str(pet_method).upper()} ...")
+        generate_monthly_potential_evapotranspiration(
+            working_directory=working_directory,
+            method=pet_method
+        )
+
     # Optionally generate S3M-compatible inputs
     generate_s3m = parse_yes_no_flag(config.get("generate_s3m_input", "n"), "generate_s3m_input")
     if generate_s3m:
