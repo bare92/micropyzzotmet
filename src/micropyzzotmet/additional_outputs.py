@@ -92,22 +92,46 @@ def compute_reference_evapotranspiration(
     same type as input broadcasting
         ET0 in mm/day.
     """
-    method_key = method.strip().lower()
-    aliases = {
-        "hargreaves": "hargreaves_samani",
-        "hargreaves_samani": "hargreaves_samani",
-        "hs": "hargreaves_samani",
+    method_key = str(method).strip().lower()
+
+    valid_methods = {
+        "hargreaves",
+        "hargreaves_samani",
+        "hs",
     }
-    if method_key not in aliases:
+
+    if method_key not in valid_methods:
         raise ValueError("Unsupported ET method. Only HS (Hargreaves-Samani) is supported")
 
-    t_range = np.maximum(t_max_c - t_min_c, 0.0)
+    t_range = t_max_c - t_min_c
+    invalid_temperature_range = t_range < 0
+
     t_mean = (t_max_c + t_min_c) / 2.0 if t_mean_c is None else t_mean_c
-    ra = compute_extraterrestrial_radiation(latitude_deg=latitude_deg, day_of_year=day_of_year)
 
-    et0 = 0.0023 * ra * (t_mean + 17.8) * np.sqrt(t_range)
+    ra_mj_m2_day = compute_extraterrestrial_radiation(
+        latitude_deg=latitude_deg,
+        day_of_year=day_of_year,
+    )
 
-    return np.maximum(et0, 0.0)
+    # FAO-56 Equation 52 requires Ra as equivalent evaporation in mm/day.
+    # 1 MJ m-2 day-1 corresponds to approximately 0.408 mm/day.
+    ra_mm_day = 0.408 * ra_mj_m2_day
+
+    et0 = (
+        0.0023
+        * ra_mm_day
+        * (t_mean + 17.8)
+        * np.sqrt(np.maximum(t_range, 0.0))
+    )
+
+    et0 = np.maximum(et0, 0.0)
+
+    if isinstance(et0, xr.DataArray):
+        et0 = et0.where(~invalid_temperature_range)
+    else:
+        et0 = np.where(invalid_temperature_range, np.nan, et0)
+
+    return et0
 
 
 def _month_tag_from_filename(path, prefix):
@@ -128,12 +152,42 @@ def _build_month_file_map(folder, prefix):
 
 def _to_celsius(temp_da):
     units = str(temp_da.attrs.get("units", "")).strip().lower()
-    if units in {"k", "kelvin"}:
+
+    kelvin_units = {
+        "k",
+        "kelvin",
+        "kelvins",
+        "degk",
+        "degree_k",
+        "degrees_k",
+        "degree_kelvin",
+        "degrees_kelvin",
+    }
+
+    celsius_units = {
+        "c",
+        "degc",
+        "degree_c",
+        "degrees_c",
+        "degree_celsius",
+        "degrees_celsius",
+        "celsius",
+        "\u00b0c",
+    }
+
+    if units in kelvin_units:
         out = temp_da - 273.15
         out.attrs = dict(temp_da.attrs)
         out.attrs["units"] = "degC"
         return out
-    return temp_da
+
+    if units in celsius_units:
+        return temp_da
+
+    raise RuntimeError(
+        f"Unrecognized or missing temperature units: {units!r}. "
+        "Expected Celsius (e.g. 'degC') or Kelvin (e.g. 'K')."
+    )
 
 
 def _latitude_grid_from_dataset(ds):
@@ -194,6 +248,12 @@ def generate_monthly_potential_evapotranspiration(working_directory, method="HS"
             tmin = _to_celsius(ds_tmin["t_min"]).astype(np.float32)
             tmax = _to_celsius(ds_tmax["t_max"]).astype(np.float32)
 
+            # --- Grid consistency check ---
+            if not np.array_equal(ds_tmin["x"].values, ds_tmax["x"].values):
+                raise RuntimeError(f"[{tag}] Tmin and Tmax have different x coordinates.")
+            if not np.array_equal(ds_tmin["y"].values, ds_tmax["y"].values):
+                raise RuntimeError(f"[{tag}] Tmin and Tmax have different y coordinates.")
+
             time_coord = "time" if "time" in tmin.dims else "valid_time"
             if time_coord != "time":
                 tmin = tmin.rename({time_coord: "time"})
@@ -201,6 +261,40 @@ def generate_monthly_potential_evapotranspiration(working_directory, method="HS"
 
             if "time" not in tmin.coords:
                 raise RuntimeError("Temperature files must include a time coordinate for PET")
+
+            # --- Timestep check: Hargreaves requires daily Tmin/Tmax ---
+            time_values = pd.DatetimeIndex(tmin["time"].values)
+            if len(time_values) > 1:
+                time_steps_hours = (
+                    np.diff(time_values.values).astype("timedelta64[h]").astype(float)
+                )
+                median_step_hours = float(np.median(time_steps_hours))
+                if not np.isclose(median_step_hours, 24.0):
+                    raise RuntimeError(
+                        "Hargreaves PET requires daily Tmin and Tmax. "
+                        f"Detected median timestep: {median_step_hours:.2f} hours in [{tag}]."
+                    )
+
+            # --- Align time coordinates exactly ---
+            tmin, tmax = xr.align(tmin, tmax, join="exact")
+
+            # --- Temperature plausibility check ---
+            valid_tmin = tmin.where(np.isfinite(tmin))
+            valid_tmax = tmax.where(np.isfinite(tmax))
+            if float(valid_tmin.min()) < -60 or float(valid_tmax.max()) > 60:
+                raise RuntimeError(
+                    f"[{tag}] Temperature values are outside a plausible Celsius range. "
+                    "Check temperature units and nodata values."
+                )
+
+            # --- Warn about physically impossible Tmax < Tmin ---
+            invalid_range = tmax < tmin
+            invalid_count = int(invalid_range.sum().values)
+            if invalid_count > 0:
+                print(
+                    f"Warning [{tag}]: {invalid_count} cells have Tmax < Tmin "
+                    "and will be set to NaN in PET output."
+                )
 
             day_of_year = xr.DataArray(
                 pd.to_datetime(tmin["time"].values).dayofyear,
@@ -212,6 +306,15 @@ def generate_monthly_potential_evapotranspiration(working_directory, method="HS"
                 dims=("y", "x"),
                 coords={"y": ds_tmin["y"].values, "x": ds_tmin["x"].values},
             )
+
+            # --- Latitude plausibility check ---
+            latitude_min = float(latitude.min())
+            latitude_max = float(latitude.max())
+            if latitude_min < -90.0 or latitude_max > 90.0:
+                raise RuntimeError(
+                    f"[{tag}] Latitude values out of valid range: "
+                    f"{latitude_min:.3f} to {latitude_max:.3f} degrees."
+                )
 
             pet = compute_reference_evapotranspiration(
                 t_min_c=tmin,
