@@ -1,5 +1,5 @@
 {
-  "working_directory": "../DEMO_micromet_outputs_check",
+  "working_directory": "../MICROMET_DAO_forcing_corrected",
   "dem_file": null,
     "download_dem_extent": {
     "lat_min": 2411452.2843490215018392,
@@ -8,7 +8,7 @@
     "lon_max": 4626352.5343716070055962
     },
   "download_dem_epsg": 3035,  
-  "download_dem_resolution": 50,  
+  "download_dem_resolution": 1000,  
   "output_filename_dem": "downloaded_dem.tif",
   "earthdatahub_pat": "edh_pat_61df66e3f10aa2e2de793de541ed4c55259bc1f7c37b54303073a1dd38952db257a6f74b388cf9d44578d01ace9c3928",
   "era_file": null,
@@ -18,12 +18,12 @@
     "t_air_max": "y",
     "sw_radiation": "n",
     "relative_humidity": "n",
-    "precipitation": "n",
+    "precipitation": "y",
     "wind": "n",
     "lw_radiation": "n"
   },
-  "start_date": "2017-04-01",
-  "end_date": "2017-07-31",
+  "start_date": "2021-01-01",
+  "end_date": "2024-12-31",
   "aggregate_daily": "y",
   "time_chunk": 24,
   "dem_nodata": -32768,

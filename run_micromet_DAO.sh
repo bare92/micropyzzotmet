@@ -5,6 +5,10 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
+# Clear all PROJ/GDAL env vars that conda activation may have injected.
+# The venv's Python handles its own data-path initialization via os.environ.pop
+# at startup (see main_micromet.py), but unsetting here keeps the process
+# environment clean from the start and avoids interference with GDAL CLI tools.
 unset PROJ_DATA
 unset PROJ_LIB
 unset GDAL_DATA
@@ -28,10 +32,11 @@ print("PROJ:", rasterio.__proj_version__)
 print("CRS:", CRS.from_epsg(4326))
 PY
 
-CONFIG_PATH="$PROJECT_DIR/option_files/micro_config_alps.json"
+CONFIG_PATH="$PROJECT_DIR/option_files/micro_config_DAO.json"
 
 echo "Running MicroMet downscaling..."
 "$PYTHON" -m micropyzzotmet.main_micromet "$CONFIG_PATH"
 
 echo "Done."
+
 

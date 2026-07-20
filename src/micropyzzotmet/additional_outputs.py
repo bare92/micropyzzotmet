@@ -40,20 +40,48 @@ def compute_extraterrestrial_radiation(latitude_deg, day_of_year):
         Daily extraterrestrial radiation in MJ m-2 day-1.
     """
     gsc = 0.0820  # MJ m-2 min-1
-    phi = np.deg2rad(latitude_deg)
-    j = day_of_year
 
-    dr = 1.0 + 0.033 * np.cos((2.0 * np.pi / 365.0) * j)
-    delta = 0.409 * np.sin((2.0 * np.pi / 365.0) * j - 1.39)
-    ws_arg = -np.tan(phi) * np.tan(delta)
-    ws = np.arccos(np.clip(ws_arg, -1.0, 1.0))
+    # Work entirely in numpy to avoid per-operation xarray overhead.
+    phi = np.deg2rad(np.asarray(latitude_deg, dtype=np.float64))
+    j   = np.asarray(day_of_year, dtype=np.float64)
 
-    ra = (
-        (24.0 * 60.0 / np.pi)
-        * gsc
-        * dr
-        * (ws * np.sin(phi) * np.sin(delta) + np.cos(phi) * np.cos(delta) * np.sin(ws))
-    )
+    factor = 2.0 * np.pi / 365.0
+    dr    = 1.0 + 0.033 * np.cos(factor * j)
+    delta = 0.409 * np.sin(factor * j - 1.39)
+
+    # Precompute spatial-only trig once (not repeated per time step).
+    sin_phi = np.sin(phi)
+    cos_phi = np.cos(phi)
+    tan_phi = np.tan(phi)
+
+    if j.ndim >= 1 and phi.ndim >= 2:
+        # (T,) × (Y, X) → (T, Y, X): expand axes explicitly so numpy
+        # broadcasts without xarray name-based alignment overhead.
+        ws_arg_c = np.clip(
+            -tan_phi[np.newaxis] * np.tan(delta)[:, np.newaxis, np.newaxis],
+            -1.0, 1.0,
+        )
+        ws     = np.arccos(ws_arg_c)
+        # sin(arccos(x)) = sqrt(1 - x²): replaces a full sin() on the 3-D array.
+        sin_ws = np.sqrt(np.maximum(1.0 - ws_arg_c ** 2, 0.0))
+        sin_d  = np.sin(delta)[:, np.newaxis, np.newaxis]
+        cos_d  = np.cos(delta)[:, np.newaxis, np.newaxis]
+        ra = (
+            (24.0 * 60.0 / np.pi) * gsc * dr[:, np.newaxis, np.newaxis]
+            * (
+                ws * sin_phi[np.newaxis] * sin_d
+                + cos_phi[np.newaxis] * cos_d * sin_ws
+            )
+        )
+    else:
+        # Scalar / 1-D latitude: simple numpy broadcast.
+        ws_arg_c = np.clip(-tan_phi * np.tan(delta), -1.0, 1.0)
+        ws     = np.arccos(ws_arg_c)
+        sin_ws = np.sqrt(np.maximum(1.0 - ws_arg_c ** 2, 0.0))
+        ra = (
+            (24.0 * 60.0 / np.pi) * gsc * dr
+            * (ws * sin_phi * np.sin(delta) + cos_phi * np.cos(delta) * sin_ws)
+        )
     return ra
 
 
@@ -101,13 +129,22 @@ def compute_reference_evapotranspiration(
     if method_key not in aliases:
         raise ValueError("Unsupported ET method. Only HS (Hargreaves-Samani) is supported")
 
-    t_range = np.maximum(t_max_c - t_min_c, 0.0)
-    t_mean = (t_max_c + t_min_c) / 2.0 if t_mean_c is None else t_mean_c
-    ra = compute_extraterrestrial_radiation(latitude_deg=latitude_deg, day_of_year=day_of_year)
+    # Extract to numpy early so all intermediate operations are plain numpy
+    # (avoids xarray per-operation overhead for large DataArray inputs).
+    is_da   = hasattr(t_min_c, "dims")
+    t_min   = np.asarray(t_min_c)
+    t_max   = np.asarray(t_max_c)
+    t_range = np.maximum(t_max - t_min, 0.0)
+    t_mean  = (t_max + t_min) / 2.0 if t_mean_c is None else np.asarray(t_mean_c)
 
+    ra  = compute_extraterrestrial_radiation(latitude_deg=latitude_deg, day_of_year=day_of_year)
     et0 = 0.0023 * ra * (t_mean + 17.8) * np.sqrt(t_range)
+    result = np.maximum(et0, 0.0)
 
-    return np.maximum(et0, 0.0)
+    # Re-wrap as DataArray only at the boundary so the caller's .attrs access works.
+    if is_da:
+        return xr.DataArray(result, dims=t_min_c.dims, coords=t_min_c.coords)
+    return result
 
 
 def _month_tag_from_filename(path, prefix):

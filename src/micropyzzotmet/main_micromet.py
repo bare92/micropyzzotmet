@@ -19,10 +19,26 @@ Author
 rbarella
 """
 
-import json
-import rasterio
-import xarray as xr
 import os
+
+# Remove conda-injected PROJ/GDAL env vars before any PROJ-aware library is
+# imported.  Conda activation scripts export PROJ_DATA, GDAL_DATA, and
+# GDAL_DRIVER_PATH pointing at the conda env's (potentially outdated) data
+# directories.  Clearing them here forces rasterio's bundled GDAL/PROJ to use
+# their own compiled-in data paths instead.
+os.environ.pop("PROJ_DATA", None)
+os.environ.pop("PROJ_LIB", None)
+os.environ.pop("GDAL_DATA", None)
+os.environ.pop("GDAL_DRIVER_PATH", None)
+
+import rasterio
+from rasterio.crs import CRS as _RasterioCRS
+
+# Initialize rasterio's PROJ context with its own bundled database now,
+# before pyproj or rioxarray are imported and can redirect PROJ_DATA.
+_RasterioCRS.from_epsg(4326)
+
+import xarray as xr
 import datetime
 import sys
 import glob
