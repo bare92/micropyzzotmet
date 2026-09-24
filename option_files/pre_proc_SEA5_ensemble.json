@@ -1,0 +1,22 @@
+{
+    "source_root": "/share/SEAS5_BC_DS_9KM/Italy",
+    "output_root": "/share/SEAS5_1KM/italy",
+
+    "emission_year": 2026,
+    "emission_month": 9,
+    "forecast_months_ahead": 3,
+
+    "source_subfolder_template": "SEAS5_{year:04d}_{month:02d}",
+    "source_filename_pattern": "SEAS5_BC_EM{emission}_FM*.nc",
+
+    "output_folder_template": "EM{emission}_FM{forecast}",
+    "output_filename_template": "SEAS5_9km_EM{emission}_FM{forecast}_{member}.nc",
+
+
+    "drop_number_dimension": true,
+
+    "compression": true,
+    "compression_level": 4,
+
+    "overwrite": false
+}
