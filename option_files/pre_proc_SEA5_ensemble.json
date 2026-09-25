@@ -1,6 +1,6 @@
 {
     "source_root": "/share/SEAS5_BC_DS_9KM/Italy",
-    "output_root": "/share/SEAS5_1KM/italy",
+    "output_root": "/share/SEAS5_1KM/italy/inputs/climate",
 
     "emission_year": 2026,
     "emission_month": 9,
@@ -11,9 +11,6 @@
 
     "output_folder_template": "EM{emission}_FM{forecast}",
     "output_filename_template": "SEAS5_9km_EM{emission}_FM{forecast}_{member}.nc",
-
-
-    "drop_number_dimension": true,
 
     "compression": true,
     "compression_level": 4,

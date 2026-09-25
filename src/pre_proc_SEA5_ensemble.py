@@ -2,21 +2,14 @@ import argparse
 import json
 import logging
 from pathlib import Path
+
 import numpy as np
 import xarray as xr
 
 
-# ============================================================
-# LOGGING
-# ============================================================
-
 def setup_logging():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
-
-# ============================================================
-# CONFIGURATION
-# ============================================================
 
 def load_configuration(config_file):
     config_file = Path(config_file)
@@ -54,14 +47,9 @@ def load_configuration(config_file):
     config.setdefault("compression", True)
     config.setdefault("compression_level", 4)
     config.setdefault("overwrite", False)
-    config.setdefault("drop_number_dimension", True)
 
     return config
 
-
-# ============================================================
-# HELPERS
-# ============================================================
 
 def parse_forecast_month(path):
     stem = path.stem
@@ -150,10 +138,6 @@ def netcdf_safe_dataset(ds):
     return out
 
 
-# ============================================================
-# VALIDATION
-# ============================================================
-
 def validate_input_dataset(ds, source_file):
     required_coords = ["latitude", "longitude"]
     missing = [coord for coord in required_coords if coord not in ds.coords]
@@ -186,10 +170,6 @@ def validate_member_dataset(ds, output_file):
                 logging.warning("%s in %s has units '%s', expected Kelvin", variable, output_file.name, units)
 
 
-# ============================================================
-# SAVE NETCDF
-# ============================================================
-
 def save_netcdf(ds, output_file, compression=True, compression_level=4):
     output_file.parent.mkdir(parents=True, exist_ok=True)
     safe = netcdf_safe_dataset(ds)
@@ -210,17 +190,13 @@ def save_netcdf(ds, output_file, compression=True, compression_level=4):
         safe.to_netcdf(output_file)
 
 
-# ============================================================
-# SPLIT ONE MONTHLY FILE
-# ============================================================
-
 def split_monthly_file(source_file, config):
     emission = f"{config['emission_year']:04d}{config['emission_month']:02d}"
     forecast_year, forecast_month = parse_forecast_month(source_file)
     forecast = f"{forecast_year:04d}{forecast_month:02d}"
 
     output_folder_name = config["output_folder_template"].format(emission=emission, forecast=forecast)
-    output_dir = config["output_root"] / output_folder_name / "input"
+    output_dir = config["output_root"] / output_folder_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.info("=" * 72)
@@ -237,7 +213,13 @@ def split_monthly_file(source_file, config):
 
         for member in members:
             member_value = int(member)
-            output_filename = config["output_filename_template"].format(emission=emission, forecast=forecast, member=member_value)
+
+            output_filename = config["output_filename_template"].format(
+                emission=emission,
+                forecast=forecast,
+                member=member_value
+            )
+
             output_file = output_dir / output_filename
 
             if output_file.exists() and not config["overwrite"]:
@@ -246,12 +228,7 @@ def split_monthly_file(source_file, config):
 
             logging.info("Processing member %d", member_value)
 
-            member_ds = ds.sel(number=member)
-
-            if config["drop_number_dimension"]:
-                member_ds = member_ds.squeeze("number", drop=True)
-
-            member_ds = member_ds.load()
+            member_ds = ds.sel(number=member).load()
             member_ds.attrs = dict(ds.attrs)
 
             member_ds.attrs.update({
@@ -265,9 +242,15 @@ def split_monthly_file(source_file, config):
             })
 
             validate_member_dataset(member_ds, output_file)
+
             logging.info("Saving: %s", output_file)
 
-            save_netcdf(member_ds, output_file, compression=config["compression"], compression_level=config["compression_level"])
+            save_netcdf(
+                member_ds,
+                output_file,
+                compression=config["compression"],
+                compression_level=config["compression_level"]
+            )
 
             with xr.open_dataset(output_file, decode_times=True) as check:
                 validate_member_dataset(check, output_file)
@@ -275,14 +258,12 @@ def split_monthly_file(source_file, config):
                 logging.info("Verified member %d | vars=%s", member_value, variables)
 
 
-# ============================================================
-# MAIN
-# ============================================================
-
 def main():
     setup_logging()
 
-    parser = argparse.ArgumentParser(description="Split monthly SEAS5 bias-corrected NetCDF files into one file per ensemble member.")
+    parser = argparse.ArgumentParser(
+        description="Split monthly SEAS5 bias-corrected NetCDF files into one file per ensemble member."
+    )
     parser.add_argument("config", help="Path to JSON configuration file")
     args = parser.parse_args()
 
