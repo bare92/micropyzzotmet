@@ -194,16 +194,12 @@ def split_monthly_file(source_file, config):
     emission = f"{config['emission_year']:04d}{config['emission_month']:02d}"
     forecast_year, forecast_month = parse_forecast_month(source_file)
     forecast = f"{forecast_year:04d}{forecast_month:02d}"
-
     output_folder_name = config["output_folder_template"].format(emission=emission, forecast=forecast)
-    output_dir = config["output_root"] / output_folder_name
-    output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.info("=" * 72)
     logging.info("SOURCE   : %s", source_file)
     logging.info("EMISSION : %s", emission)
     logging.info("FORECAST : %s", forecast)
-    logging.info("OUTPUT   : %s", output_dir)
 
     with xr.open_dataset(source_file, decode_times=True) as ds:
         validate_input_dataset(ds, source_file)
@@ -214,12 +210,10 @@ def split_monthly_file(source_file, config):
         for member in members:
             member_value = int(member)
 
-            output_filename = config["output_filename_template"].format(
-                emission=emission,
-                forecast=forecast,
-                member=member_value
-            )
+            output_dir = config["output_root"] / output_folder_name / f"member_{member_value:02d}" / "inputs" / "climate"
+            output_dir.mkdir(parents=True, exist_ok=True)
 
+            output_filename = config["output_filename_template"].format(emission=emission, forecast=forecast, member=member_value)
             output_file = output_dir / output_filename
 
             if output_file.exists() and not config["overwrite"]:
@@ -227,6 +221,7 @@ def split_monthly_file(source_file, config):
                 continue
 
             logging.info("Processing member %d", member_value)
+            logging.info("OUTPUT   : %s", output_file)
 
             member_ds = ds.sel(number=member).load()
             member_ds.attrs = dict(ds.attrs)
@@ -242,8 +237,6 @@ def split_monthly_file(source_file, config):
             })
 
             validate_member_dataset(member_ds, output_file)
-
-            logging.info("Saving: %s", output_file)
 
             save_netcdf(
                 member_ds,
@@ -261,9 +254,7 @@ def split_monthly_file(source_file, config):
 def main():
     setup_logging()
 
-    parser = argparse.ArgumentParser(
-        description="Split monthly SEAS5 bias-corrected NetCDF files into one file per ensemble member."
-    )
+    parser = argparse.ArgumentParser(description="Split monthly SEAS5 bias-corrected NetCDF files into one file per ensemble member.")
     parser.add_argument("config", help="Path to JSON configuration file")
     args = parser.parse_args()
 
