@@ -20,6 +20,7 @@ rbarella
 """
 
 import os
+import re
 
 # Remove conda-injected PROJ/GDAL env vars before any PROJ-aware library is
 # imported.  Conda activation scripts export PROJ_DATA, GDAL_DATA, and
@@ -48,6 +49,40 @@ from .downscaling_variables import *
 from .additional_outputs import generate_monthly_potential_evapotranspiration
 import time
 from joblib import Parallel, delayed
+
+
+def climate_forcing_files_ready(output_dir, start_date, end_date, aggregate_daily=False):
+    """Return True when all monthly ERA5 forcing files for the run already exist."""
+    tag = "_daily" if aggregate_daily else ""
+    month_starts = pd.date_range(start=start_date, end=end_date, freq="MS")
+
+    for month_start in month_starts:
+        climate_file = os.path.join(
+            output_dir,
+            f"era_{month_start.strftime('%Y_%m')}{tag}.nc",
+        )
+        if not os.path.exists(climate_file):
+            return False
+
+    return len(month_starts) > 0
+
+
+def pending_climate_files(climate_files, output_folder, output_file_prefix):
+    """Return only climate files whose corresponding downscaled output is missing."""
+    pending_files = []
+
+    for climate_file in climate_files:
+        match = re.search(r"era_(\d{4}_\d{2})", os.path.basename(climate_file))
+        if match is None:
+            pending_files.append(climate_file)
+            continue
+
+        month_tag = match.group(1)
+        output_file = os.path.join(output_folder, f"{output_file_prefix}_{month_tag}.nc")
+        if not os.path.exists(output_file):
+            pending_files.append(climate_file)
+
+    return pending_files
 
 # Temperature
 def run_temperature(curr_climate_file, dem_path, working_directory,
@@ -81,7 +116,11 @@ def run_temperature(curr_climate_file, dem_path, working_directory,
     output_folder = os.path.join(working_directory, 'outputs', 'Temperature')
     downscale_Temperature(
         dem_path, curr_climate_file, output_folder,
-        custom_lapse_rate=custom_lapse_rates.get("Temperature"),
+        custom_lapse_rate=(
+            custom_lapse_rates
+            .get("temperature", {})
+            .get("monthly")
+        ),
         dem_nodata=dem_nodata,
         time_chunk=time_chunk,
         source_temperature_var="t2m",
@@ -97,7 +136,11 @@ def run_temperature_min(curr_climate_file, dem_path, working_directory,
     output_folder = os.path.join(working_directory, 'outputs', 'Temperature_min')
     downscale_Temperature(
         dem_path, curr_climate_file, output_folder,
-        custom_lapse_rate=custom_lapse_rates.get("Temperature"),
+        custom_lapse_rate=(
+            custom_lapse_rates
+            .get("temperature", {})
+            .get("monthly")
+        ),
         dem_nodata=dem_nodata,
         time_chunk=time_chunk,
         source_temperature_var="t_min",
@@ -113,7 +156,11 @@ def run_temperature_max(curr_climate_file, dem_path, working_directory,
     output_folder = os.path.join(working_directory, 'outputs', 'Temperature_max')
     downscale_Temperature(
         dem_path, curr_climate_file, output_folder,
-        custom_lapse_rate=custom_lapse_rates.get("Temperature"),
+        custom_lapse_rate=(
+            custom_lapse_rates
+            .get("temperature", {})
+            .get("monthly")
+        ),
         dem_nodata=dem_nodata,
         time_chunk=time_chunk,
         source_temperature_var="t_max",
@@ -358,22 +405,29 @@ def run_micropezzomet(config_path):
     dem_nodata = config.get("dem_nodata", None)
     
     time_chunk = config.get("time_chunk", 24)
+    climate_output_dir = os.path.join(working_directory, 'inputs/climate')
+    aggregate_daily_flag = parse_yes_no_flag(aggregate_daily, "aggregate_daily")
+    existing_climate_files = sorted(glob.glob(os.path.join(climate_output_dir, '*.nc')))
 
     
     if era_path is None:
-        print("Downloading ERA5-Land data...")
-        aggregate_daily = parse_yes_no_flag(aggregate_daily, "n")
-
-        get_era5(
-            start_date=start_date,
-            end_date=end_date,
-            refrence_area_path=dem_path,
-            output_dir=os.path.join(working_directory, 'inputs/climate'),
-            PAT=pat_token,
-            jobs_download=jobs_download,
-            aggregate_daily=aggregate_daily,
-            machine=netrc_machine
-        )
+        if existing_climate_files:
+            print(
+                f"Found {len(existing_climate_files)} existing climate file(s) in {climate_output_dir}; "
+                "skipping ERA5-Land download and using the cached files for downscaling."
+            )
+        else:
+            print("Downloading ERA5-Land data...")
+            get_era5(
+                start_date=start_date,
+                end_date=end_date,
+                refrence_area_path=dem_path,
+                output_dir=climate_output_dir,
+                PAT=pat_token,
+                jobs_download=jobs_download,
+                aggregate_daily=aggregate_daily_flag,
+                machine=netrc_machine
+            )
 
     compute_slope_aspect(dem_path, working_directory)
     
@@ -385,51 +439,99 @@ def run_micropezzomet(config_path):
     
     # Air Temperature
     if parse_yes_no_flag(variables_to_downscale.get("t_air", "n"), "t_air"):
-        Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_temperature)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        climate_files_t = pending_climate_files(
+            climate_files,
+            os.path.join(working_directory, 'outputs', 'Temperature'),
+            "temperature_downscaled",
         )
+        if climate_files_t:
+            Parallel(n_jobs=jobs_downscaling)(
+                delayed(run_temperature)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files_t
+            )
 
     # Air Temperature (daily minimum)
     if parse_yes_no_flag(variables_to_downscale.get("t_air_min", "n"), "t_air_min"):
-        Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_temperature_min)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        climate_files_tmin = pending_climate_files(
+            climate_files,
+            os.path.join(working_directory, 'outputs', 'Temperature_min'),
+            "temperature_min_downscaled",
         )
+        if climate_files_tmin:
+            Parallel(n_jobs=jobs_downscaling)(
+                delayed(run_temperature_min)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files_tmin
+            )
 
     # Air Temperature (daily maximum)
     if parse_yes_no_flag(variables_to_downscale.get("t_air_max", "n"), "t_air_max"):
-        Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_temperature_max)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        climate_files_tmax = pending_climate_files(
+            climate_files,
+            os.path.join(working_directory, 'outputs', 'Temperature_max'),
+            "temperature_max_downscaled",
         )
+        if climate_files_tmax:
+            Parallel(n_jobs=jobs_downscaling)(
+                delayed(run_temperature_max)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files_tmax
+            )
 
     # Shortwave Radiation
     if parse_yes_no_flag(variables_to_downscale.get("sw_radiation", "n"), "sw_radiation"):
-        Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_shortwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        climate_files_sw = pending_climate_files(
+            climate_files,
+            os.path.join(working_directory, 'outputs', 'SW'),
+            "shortwave_downscaled",
         )
+        if climate_files_sw:
+            Parallel(n_jobs=jobs_downscaling)(
+                delayed(run_shortwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files_sw
+            )
 
     # Relative Humidity
     if parse_yes_no_flag(variables_to_downscale.get("relative_humidity", "n"), "relative_humidity"):
-        Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_relative_humidity)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        climate_files_rh = pending_climate_files(
+            climate_files,
+            os.path.join(working_directory, 'outputs', 'RH'),
+            "relative_humidity",
         )
+        if climate_files_rh:
+            Parallel(n_jobs=jobs_downscaling)(
+                delayed(run_relative_humidity)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files_rh
+            )
 
     # Precipitation
     if parse_yes_no_flag(variables_to_downscale.get("precipitation", "n"), "precipitation"):
-        Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_precipitation)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        climate_files_p = pending_climate_files(
+            climate_files,
+            os.path.join(working_directory, 'outputs', 'P'),
+            "precipitation",
         )
+        if climate_files_p:
+            Parallel(n_jobs=jobs_downscaling)(
+                delayed(run_precipitation)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files_p
+            )
 
     # Wind
     if parse_yes_no_flag(variables_to_downscale.get("wind", "n"), "wind"):
-        Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_wind)(f, dem_path, working_directory, variables_to_downscale, dem_nodata, time_chunk) for f in climate_files
+        climate_files_wind = pending_climate_files(
+            climate_files,
+            os.path.join(working_directory, 'outputs', 'Wind'),
+            "wind_speed_direction",
         )
+        if climate_files_wind:
+            Parallel(n_jobs=jobs_downscaling)(
+                delayed(run_wind)(f, dem_path, working_directory, variables_to_downscale, dem_nodata, time_chunk) for f in climate_files_wind
+            )
 
     # Longwave Radiation
     if parse_yes_no_flag(variables_to_downscale.get("lw_radiation", "n"), "lw_radiation"):
-        Parallel(n_jobs=jobs_downscaling)(
-            delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files
+        climate_files_lw = pending_climate_files(
+            climate_files,
+            os.path.join(working_directory, 'outputs', 'LW'),
+            "longwave_downscaled",
         )
+        if climate_files_lw:
+            Parallel(n_jobs=jobs_downscaling)(
+                delayed(run_longwave)(f, dem_path, working_directory, variables_to_downscale, custom_lapse_rates, dem_nodata, time_chunk) for f in climate_files_lw
+            )
         
     # Optionally generate additional inputs
     generate_pet = parse_yes_no_flag(

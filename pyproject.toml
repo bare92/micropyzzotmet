@@ -16,8 +16,10 @@ authors = [
 dependencies = [
   "numpy>=2.3.0,<2.5",
   "pandas==2.3.3",
-  "xarray==2025.4.0",
+  # Zarr v3-compatible xarray; last xarray release supporting Python 3.11.
+  "xarray==2026.9.0",
   "rasterio==1.4.3",
+  # Keep this version to retain Python 3.11 compatibility.
   "rioxarray==0.19.0",
   "pyproj==3.7.2",
   "scipy==1.15.3",
@@ -27,11 +29,14 @@ dependencies = [
   "tqdm==4.67.3",
   "affine==2.4.0",
   "matplotlib==3.10.8",
-  "zarr==2.18.3",
-  "numcodecs==0.15.1",
+  # Zarr 3.1.x supports Python 3.11; Zarr >= 3.2 requires Python >= 3.12.
+  "zarr==3.1.6",
+  "numcodecs==0.16.5",
   "fsspec==2026.2.0",
   "s3fs==2026.2.0",
-  "dask==2026.3.0"
+  # Needed explicitly for Earth Data Hub HTTPS access via fsspec.
+  "aiohttp>=3.10,<4",
+  "dask[array]==2026.3.0"
 ]
 
 [project.optional-dependencies]

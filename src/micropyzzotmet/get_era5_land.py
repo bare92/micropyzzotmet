@@ -28,7 +28,13 @@ from .utils import build_earthdatahub_url
 
 
 def _is_transient_http_error(exc):
-    """Return True for temporary network/payload failures worth retrying."""
+    """Return True for temporary network/payload failures worth retrying.
+    
+    Detects transient errors including:
+    - Network connectivity errors (connection resets, timeouts)
+    - HTTP 5xx server errors (502, 503, 504, etc.)
+    - Payload/content encoding errors
+    """
     transient_markers = [
         "ClientPayloadError",
         "ContentLengthError",
@@ -37,9 +43,20 @@ def _is_transient_http_error(exc):
         "ServerDisconnectedError",
         "ReadTimeout",
         "TimeoutError",
+        "502",  # Bad Gateway
+        "503",  # Service Unavailable
+        "504",  # Gateway Timeout
+        "ConnectionError",
+        "ConnectionRefusedError",
+        "ConnectionResetError",
     ]
     text = f"{type(exc).__name__}: {exc}"
     return any(marker in text for marker in transient_markers)
+
+
+def _format_exception(exc):
+    """Return a serializable exception summary safe to pass across workers."""
+    return f"{type(exc).__name__}: {exc}"
 
 
 def is_valid_netcdf(file_path):
@@ -47,12 +64,18 @@ def is_valid_netcdf(file_path):
     Check whether a NetCDF file exists and can be opened by xarray.
 
     This is used to skip already-downloaded or already-generated files.
-    Returns True if the file can be opened, otherwise False.
+    Returns True if the file can be opened and contains non-empty spatial
+    coordinates, otherwise False.
     """
     try:
-        xr.open_dataset(file_path).close()
+        with xr.open_dataset(file_path) as ds:
+            for coord_name in ("longitude", "latitude"):
+                if coord_name not in ds.coords:
+                    return False
+                if ds.coords[coord_name].size < 2:
+                    return False
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -71,6 +94,26 @@ def lon_to_360(lon):
         Longitude expressed in [0, 360].
     """
     return lon if lon >= 0 else lon + 360
+
+
+def subset_era5_domain(ds, lat_min, lat_max, lon_min, lon_max):
+    """Subset an ERA dataset on a 0..360 longitude grid.
+
+    Handles domains that cross the prime meridian after converting negative
+    longitudes into ERA's 0..360 convention.
+    """
+    lat_slice = slice(lat_max, lat_min)
+    lon_start = lon_to_360(lon_min)
+    lon_end = lon_to_360(lon_max)
+
+    ds = ds.sel(latitude=lat_slice)
+    if lon_start <= lon_end:
+        return ds.sel(longitude=slice(lon_start, lon_end))
+
+    return ds.where(
+        (ds.longitude >= lon_start) | (ds.longitude <= lon_end),
+        drop=True,
+    )
 
 
 def get_tiff_extent_latlon(tiff_path, buffer=0.4):
@@ -202,7 +245,12 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False, ma
             ds_month = ds.sel(valid_time=slice(start, end))
             ds_surface = ds_month[surface_vars]
 
-            # Convert longitude to [-180, 180]
+            # Materialize from zarr/dask into memory before any resample or groupby.
+            # Loky worker processes cannot reliably execute dask graphs that reference
+            # the parent-process zarr connection, which causes zero-size chunk errors.
+            ds_surface = ds_surface.load()
+
+            # Convert longitude to [-180, 180] AFTER load to ensure proper coordinate handling
             longitudes = ds_surface['longitude'].values
             longitudes = np.where(longitudes > 180, longitudes - 360, longitudes)
             ds_surface = ds_surface.assign_coords(longitude=("longitude", longitudes))
@@ -253,9 +301,6 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False, ma
             ds_surface.latitude.attrs.update(units='degrees_north', standard_name='latitude', axis='Y')
             ds_surface.longitude.attrs.update(units='degrees_east', standard_name='longitude', axis='X')
 
-            # Keep remote I/O inside retry boundary and avoid lazy fetch during write.
-            ds_surface = ds_surface.load()
-
             # NOTE: requires rioxarray; if it's missing, move this inside a try/except or mock it for docs
             ds_surface = ds_surface.rio.write_crs("EPSG:4326", inplace=True)
 
@@ -264,12 +309,22 @@ def process_month(ds, start, output_dir, surface_vars, aggregate_daily=False, ma
             os.replace(tmp_file, surface_file)
             return
         except Exception as exc:
-            if attempt >= max_retries or not _is_transient_http_error(exc):
-                raise
+            # Aiohttp/fsspec exceptions can contain non-picklable response objects.
+            # Joblib workers must only propagate a plain serializable error.
+            exc_text = _format_exception(exc)
+            is_transient = _is_transient_http_error(exc)
+
+            if attempt >= max_retries or not is_transient:
+                raise RuntimeError(
+                    f"ERA download/read failed for {start.strftime('%Y-%m')} after "
+                    f"{attempt} attempt(s): {exc_text}"
+                ) from None
+
             wait_s = retry_wait_s * attempt
             print(
                 f"Transient ERA download/read error for {start.strftime('%Y-%m')} "
-                f"(attempt {attempt}/{max_retries}). Retrying in {wait_s}s..."
+                f"({exc_text}). "
+                f"Attempt {attempt}/{max_retries}. Retrying in {wait_s}s..."
             )
             time.sleep(wait_s)
 
@@ -311,19 +366,56 @@ def get_era5(start_date, end_date, refrence_area_path, output_dir, PAT=None, job
     """
     os.makedirs(output_dir, exist_ok=True)
     lat_min, lat_max, lon_min, lon_max = get_tiff_extent_latlon(refrence_area_path)
-    lat_slice = slice(lat_max, lat_min)
-    lon_slice = slice(lon_to_360(lon_min), lon_to_360(lon_max))
-    subset_dict = {"latitude": lat_slice, "longitude": lon_slice}
 
     variables = ['d2m', 't2m', 'sp', 'ssrd', 'strd', 'tp', 'u10', 'v10']
-    url = build_earthdatahub_url(
-        "era5/reanalysis-era5-land-no-antartica-v0.zarr",
-        pat=PAT,
-        machine=machine
-    )
+    # url = build_earthdatahub_url(
+    #     "era5/reanalysis-era5-land-no-antartica-v0.zarr",
+    #     pat=PAT,
+    #     machine=machine
+    # )
 
-    ds = xr.open_dataset(url, chunks={}, engine="zarr").astype("float32")
-    ds = ds.sel(**subset_dict)
+    url = build_earthdatahub_url(
+            "era5/era5-land-v0.zarr",
+            pat=PAT,
+            machine=machine
+        )
+
+    # Retry opening the remote zarr dataset in case of transient network errors
+    max_open_retries = 5
+    open_retry_wait = 2
+    for attempt in range(1, max_open_retries + 1):
+        try:
+            # Use fsspec timeout to catch slow connections; allow longer for large dataset opens
+            ds = xr.open_dataset(
+                url,
+                chunks={},
+                engine="zarr",
+            )
+
+            print("ERA5-Land dimensions:", dict(ds.sizes))
+            print("ERA5-Land variables:", list(ds.data_vars))
+
+            if not {"latitude", "longitude", "valid_time"}.issubset(ds.coords):
+                raise RuntimeError(
+                    "ERA5-Land opened without the expected coordinates. "
+                    "Check Zarr metadata and authentication."
+                )
+            break
+        except Exception as exc:
+            exc_text = _format_exception(exc)
+            if attempt >= max_open_retries or not _is_transient_http_error(exc):
+                raise RuntimeError(
+                    f"Failed to open ERA5 zarr dataset after {max_open_retries} attempts: "
+                    f"{exc_text}"
+                ) from None
+            wait_s = open_retry_wait * attempt
+            print(
+                f"Transient error opening ERA5 zarr dataset ({exc_text}). "
+                f"Attempt {attempt}/{max_open_retries}. Retrying in {wait_s}s..."
+            )
+            time.sleep(wait_s)
+
+    ds = subset_era5_domain(ds, lat_min, lat_max, lon_min, lon_max)
     ds = ds.sel(valid_time=slice(start_date, end_date))
 
     time_ranges = pd.date_range(start=start_date, end=end_date, freq='MS')

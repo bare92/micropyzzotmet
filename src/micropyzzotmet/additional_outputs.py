@@ -94,57 +94,59 @@ def compute_reference_evapotranspiration(
     t_mean_c=None,
 ):
     """
-        Compute reference evapotranspiration (ET0, mm/day) using Hargreaves-Samani.
-
-        Equation
-        --------
-        ET0 = 0.0023 * Ra * (Tmean + 17.8) * sqrt(Tmax - Tmin)
-
-    Parameters
-    ----------
-    t_min_c : float, numpy.ndarray, or xarray.DataArray
-        Daily minimum air temperature in degC.
-    t_max_c : float, numpy.ndarray, or xarray.DataArray
-        Daily maximum air temperature in degC.
-    latitude_deg : float, numpy.ndarray, or xarray.DataArray
-        Latitude in decimal degrees.
-    day_of_year : int, numpy.ndarray, or xarray.DataArray
-        Day of year (1..366).
-    method : str, default "hargreaves_samani"
-        Method selector. Only HS/Hargreaves-Samani is supported.
-    t_mean_c : float, numpy.ndarray, or xarray.DataArray, optional
-        Daily mean air temperature in degC. If None, computed as (Tmax + Tmin)/2.
+    Compute daily reference evapotranspiration using the FAO-56
+    Hargreaves equation.
 
     Returns
     -------
-    same type as input broadcasting
-        ET0 in mm/day.
+    ET0 in mm/day.
     """
-    method_key = method.strip().lower()
-    aliases = {
-        "hargreaves": "hargreaves_samani",
-        "hargreaves_samani": "hargreaves_samani",
-        "hs": "hargreaves_samani",
+    method_key = str(method).strip().lower()
+
+    valid_methods = {
+        "hargreaves",
+        "hargreaves_samani",
+        "hs",
     }
-    if method_key not in aliases:
-        raise ValueError("Unsupported ET method. Only HS (Hargreaves-Samani) is supported")
 
-    # Extract to numpy early so all intermediate operations are plain numpy
-    # (avoids xarray per-operation overhead for large DataArray inputs).
-    is_da   = hasattr(t_min_c, "dims")
-    t_min   = np.asarray(t_min_c)
-    t_max   = np.asarray(t_max_c)
-    t_range = np.maximum(t_max - t_min, 0.0)
-    t_mean  = (t_max + t_min) / 2.0 if t_mean_c is None else np.asarray(t_mean_c)
+    if method_key not in valid_methods:
+        raise ValueError(
+            "Unsupported ET method. "
+            "Only Hargreaves-Samani is supported."
+        )
 
-    ra  = compute_extraterrestrial_radiation(latitude_deg=latitude_deg, day_of_year=day_of_year)
-    et0 = 0.0023 * ra * (t_mean + 17.8) * np.sqrt(t_range)
-    result = np.maximum(et0, 0.0)
+    t_range = t_max_c - t_min_c
+    invalid_range = t_range < 0
 
-    # Re-wrap as DataArray only at the boundary so the caller's .attrs access works.
-    if is_da:
-        return xr.DataArray(result, dims=t_min_c.dims, coords=t_min_c.coords)
-    return result
+    t_mean = (
+        (t_max_c + t_min_c) / 2.0
+        if t_mean_c is None
+        else t_mean_c
+    )
+
+    ra_mj_m2_day = compute_extraterrestrial_radiation(
+        latitude_deg=latitude_deg,
+        day_of_year=day_of_year,
+    )
+
+    # FAO-56 Equation 52 uses Ra as equivalent evaporation in mm/day.
+    ra_mm_day = 0.408 * ra_mj_m2_day
+
+    et0 = (
+        0.0023
+        * ra_mm_day
+        * (t_mean + 17.8)
+        * np.sqrt(np.maximum(t_range, 0.0))
+    )
+
+    et0 = np.maximum(et0, 0.0)
+
+    if isinstance(et0, xr.DataArray):
+        et0 = et0.where(~invalid_range)
+    else:
+        et0 = np.where(invalid_range, np.nan, et0)
+
+    return et0
 
 
 def _month_tag_from_filename(path, prefix):

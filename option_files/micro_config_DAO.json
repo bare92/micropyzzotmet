@@ -1,5 +1,5 @@
 {
-  "working_directory": "../MICROMET_DAO_forcing_corrected",
+  "working_directory": "/home/fremen/data/projects/DAO/01_inputs/micromet",
   "dem_file": null,
     "download_dem_extent": {
     "lat_min": 2411452.2843490215018392,
@@ -22,8 +22,8 @@
     "wind": "n",
     "lw_radiation": "n"
   },
-  "start_date": "2021-01-01",
-  "end_date": "2024-12-31",
+  "start_date": "2026-05-01",
+  "end_date": "2026-09-30",
   "aggregate_daily": "y",
   "time_chunk": 24,
   "dem_nodata": -32768,

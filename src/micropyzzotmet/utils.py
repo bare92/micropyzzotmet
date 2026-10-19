@@ -499,6 +499,10 @@ def compute_slope_aspect(dem_path, working_directory):
     slope_path = os.path.join(output_dir, 'slope.tif')
     aspect_path = os.path.join(output_dir, 'aspect.tif')
 
+    if os.path.exists(slope_path) and os.path.exists(aspect_path):
+        print(f"Slope and aspect already exist in {output_dir}. Skipping.")
+        return slope_path, aspect_path
+
     with rasterio.open(dem_path) as src:
         if src.crs.to_epsg() == 4326:
             # Reproject to UTM for slope/aspect computation

@@ -175,7 +175,20 @@ def downscale_Temperature(
 
     dx = np.abs(lon[1] - lon[0])
     dy = np.abs(lat[1] - lat[0])
-    era_transform = from_origin(np.min(lon), np.max(lat), dx, dy)
+    
+    if not np.all(np.diff(lon) > 0):
+        raise ValueError("ERA longitude must be ascending.")
+    
+    if not np.all(np.diff(lat) < 0):
+        raise ValueError("ERA latitude must be descending.")
+    
+    era_transform = Affine.translation(
+        float(lon[0]) - dx / 2.0,
+        float(lat[0]) + dy / 2.0,
+    ) * Affine.scale(
+        dx,
+        -dy,
+    )
     era_crs = CRS.from_epsg(4326)
 
     height, width = dem.shape
@@ -215,13 +228,13 @@ def downscale_Temperature(
     
     # Data variable
     temperature_var = root.createVariable(
-        output_temperature_var, "i2", ("time", "y", "x"),
-        fill_value=np.int16(out_nodata),
+        output_temperature_var, "f4", ("time", "y", "x"),
+        fill_value=np.float32(out_nodata),
         chunksizes=(min(time_chunk, ntime), min(256, height), min(256, width))
     )
     temperature_var.units = "K"
     temperature_var.description = f"Downscaled {source_temperature_var}"
-    temperature_var.missing_value = np.int16(out_nodata)
+    temperature_var.missing_value = np.float32(out_nodata)
     
     # ---- CF grid mapping (THIS is what QGIS needs) ----
     spatial_ref = root.createVariable("spatial_ref", "i4")
@@ -252,7 +265,7 @@ def downscale_Temperature(
         end = min(start + time_chunk, ntime)
         B = end - start
 
-        chunk_data = np.empty((B, height, width), dtype=np.int16)
+        chunk_data = np.empty((B, height, width), dtype=np.float32)
         chunk_times = []
 
         for k, idx in enumerate(range(start, end)):
@@ -262,9 +275,12 @@ def downscale_Temperature(
             month_index = date.month - 1
             lapse_rate = lapse_rate_all[month_index]
 
-            temp_raw = temp.isel(valid_time=idx).values if "valid_time" in temp.dims else temp.isel(time=idx).values
-            temp_u16 = np.rint(temp_raw).astype(np.uint16, copy=False)  # 1 K quantization early
-            temp_f32 = temp_u16.astype(np.float32, copy=False)
+            temp_raw = (
+                temp.isel(valid_time=idx).values
+                if "valid_time" in temp.dims
+                else temp.isel(time=idx).values
+            )
+            temp_f32 = temp_raw.astype(np.float32, copy=False)
 
             t_0 = temp_f32 - lapse_rate * (0 - z0)
 
@@ -281,11 +297,13 @@ def downscale_Temperature(
 
             temperature_downscaled = t0_resampled - lapse_rate * (dem - 0)
 
-            temp_i32 = np.rint(temperature_downscaled).astype(np.int32)
-            temp_i32[dem_mask | ~np.isfinite(temperature_downscaled)] = int(out_nodata)
-            chunk_data[k, :, :] = np.clip(temp_i32, -32768, 32767).astype(np.int16)
+            temperature_downscaled[dem_mask | ~np.isfinite(temperature_downscaled)] = float(out_nodata)
+            chunk_data[k, :, :] = temperature_downscaled.astype(
+                np.float32,
+                copy=False,
+            )
 
-            del temp_raw, temp_u16, temp_f32, t_0, t0_resampled, temperature_downscaled, temp_i32
+            del temp_raw, temp_f32, t_0, t0_resampled, temperature_downscaled
             pbar.update(1)
 
         # write times + data for this block at the correct indices
